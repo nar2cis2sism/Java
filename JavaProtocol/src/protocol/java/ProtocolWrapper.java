@@ -1,16 +1,17 @@
 package protocol.java;
 
-import engine.java.util.io.ByteDataUtil;
-import engine.java.util.io.ByteDataUtil.ByteData;
-import engine.java.util.secure.CryptoUtil;
-import engine.java.util.secure.ZipUtil;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 网络通信通用协议<p>
@@ -20,7 +21,6 @@ import java.io.InputStream;
  * @version N
  * @since 6/6/2014
  */
-
 public final class ProtocolWrapper {
     
     private static final int HEADER_LENGTH = 13;
@@ -32,12 +32,56 @@ public final class ProtocolWrapper {
         protocolEncryptKey = key;
     }
 
-    private static byte[] encrypt(byte[] key, byte[] data) {
-        return CryptoUtil.AES_encrypt(key, data);
+    private static byte[] encrypt(byte[] key, byte[] data) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"));
+        return cipher.doFinal(data);
     }
 
-    private static byte[] decrypt(byte[] key, byte[] data) {
-        return CryptoUtil.AES_decrypt(key, data);
+    private static byte[] decrypt(byte[] key, byte[] data) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"));
+        return cipher.doFinal(data);
+    }
+
+    private static byte[] gzip(byte[] content) throws IOException {
+        GZIPOutputStream zos = null;
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            zos = new GZIPOutputStream(baos);
+            zos.write(content);
+            zos.finish();
+            return baos.toByteArray();
+        } finally {
+            if (zos != null)
+            {
+                zos.close();
+            }
+        }
+    }
+
+    private static byte[] ungzip(byte[] content) throws IOException {
+        GZIPInputStream zis = null;
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            zis = new GZIPInputStream(new ByteArrayInputStream(content));
+            writeStream(zis, baos);
+            return baos.toByteArray();
+        } finally {
+            if (zis != null)
+            {
+                zis.close();
+            }
+        }
+    }
+
+    private static void writeStream(InputStream is, OutputStream os) throws IOException {
+        byte[] buffer = new byte[1024];
+        int n = 0;
+        while ((n = is.read(buffer)) > 0)
+        {
+            os.write(buffer, 0, n);
+        }
     }
     
     public static byte[] wrap(ProtocolEntity entity) throws Exception {
@@ -50,11 +94,11 @@ public final class ProtocolWrapper {
         byte[] header = new byte[HEADER_LENGTH];
         
         int offset = 0;
-        ByteDataUtil.intToBytes_HL(entity.packageSize, header, offset);
+        intToBytes(entity.packageSize, header, offset);
         offset += 4;    // 4位，包的长度
-        ByteDataUtil.intToBytes_HL(entity.cmd, header, offset);
+        intToBytes(entity.cmd, header, offset);
         offset += 4;    // 4位，推送指令码
-        ByteDataUtil.intToBytes_HL(entity.msgId, header, offset);
+        intToBytes(entity.msgId, header, offset);
         offset += 4;    // 4位，信令id
         header[offset] = (byte) entity.flag;
         offset++;       // 1位，加密压缩标志，0x01压缩，0x02加密
@@ -75,11 +119,11 @@ public final class ProtocolWrapper {
         }
         
         int offset = 0;
-        int packageSize = ByteDataUtil.bytesToInt_HL(header, offset);
+        int packageSize = bytesToInt(header, offset);
         offset += 4;    // 4位，包的长度
-        int cmd = ByteDataUtil.bytesToInt_HL(header, offset);
+        int cmd = bytesToInt(header, offset);
         offset += 4;    // 4位，推送指令码
-        int msgId = ByteDataUtil.bytesToInt_HL(header, offset);
+        int msgId = bytesToInt(header, offset);
         offset += 4;    // 4位，信令id
         int flag = header[offset] & 0xff;
         offset++;       // 1位，加密压缩标志，0x01压缩，0x02加密
@@ -114,8 +158,32 @@ public final class ProtocolWrapper {
         
         return len != -1;
     }
+
+    private static void intToBytes(int i, byte[] bs, int offset) {
+        bs[offset] = (byte) (i >> 24);
+        bs[offset + 1] = (byte) (i >> 16);
+        bs[offset + 2] = (byte) (i >> 8);
+        bs[offset + 3] = (byte) i;
+    }
+
+    private static int bytesToInt(byte[] bs, int offset) {
+        return (bs[offset + 3] & 0xff)
+            | ((bs[offset + 2] & 0xff) << 8)
+            | ((bs[offset + 1] & 0xff) << 16)
+            | ((bs[offset] & 0xff) << 24);
+    }
     
     public static final class ProtocolEntity {
+
+        /**
+         * 用于协议传输的数据接口
+         */
+        public static interface ProtocolData {
+
+            public void write(DataOutputStream dos) throws IOException;
+
+            public void read(DataInputStream dis) throws IOException;
+        }
         
         int packageSize;
         
@@ -131,11 +199,11 @@ public final class ProtocolWrapper {
         
         byte[] body;
         
-        private ByteData data;
+        private ProtocolData data;
         
         private ProtocolEntity() {}
         
-        public static ProtocolEntity newInstance(int msgId, int cmd, ByteData data) {
+        public static ProtocolEntity newInstance(int msgId, int cmd, ProtocolData data) {
             ProtocolEntity entity = new ProtocolEntity();
             entity.msgId = msgId;
             entity.cmd = cmd;
@@ -151,7 +219,7 @@ public final class ProtocolWrapper {
             return cmd;
         }
 
-        public ByteData getData() {
+        public ProtocolData getData() {
             if (data == null)
             {
                 throw new RuntimeException("Please call function ProtocolEntiry.parseBody() before.");
@@ -171,15 +239,19 @@ public final class ProtocolWrapper {
                 if (body.length > 512)
                 {
                     // 压缩
-                    body = ZipUtil.gzip(body);
+                    body = gzip(body);
                     flag |= 0x01;
                 }
 
                 if (protocolEncryptKey != null)
                 {
                     // 加密
-                    body = encrypt(protocolEncryptKey, body);
-                    flag |= 0x02;
+                    try {
+                        body = encrypt(protocolEncryptKey, body);
+                        flag |= 0x02;
+                    } catch (Exception e) {
+                        // Keep origin data.
+                    }
                 }
                 
                 packageSize = (this.body = body).length + HEADER_LENGTH;
@@ -199,14 +271,14 @@ public final class ProtocolWrapper {
             if ((flag & 0x01) != 0)
             {
                 // 解压缩
-                body = ZipUtil.ungzip(body);
+                body = ungzip(body);
             }
             
             DataInputStream dis = new DataInputStream(
                     new ByteArrayInputStream(body));
             try {
-                Class<? extends ByteData> cls = Class.forName(dis.readUTF())
-                        .asSubclass(ByteData.class);
+                Class<? extends ProtocolData> cls = Class.forName(dis.readUTF())
+                        .asSubclass(ProtocolData.class);
                 data = cls.newInstance();
                 data.read(dis);
             } finally {

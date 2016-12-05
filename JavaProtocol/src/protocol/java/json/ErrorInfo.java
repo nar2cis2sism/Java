@@ -1,10 +1,13 @@
 package protocol.java.json;
 
-import engine.java.util.Util;
-
 import java.util.HashMap;
 
+/**
+ * 错误信息
+ */
 public class ErrorInfo {
+    
+    public static final int CODE_SUCCESS = 200;
     
     private static final HashMap<Integer, String> errorMap
     = new HashMap<Integer, String>();
@@ -19,12 +22,11 @@ public class ErrorInfo {
         errorMap.put(500, "服务器内部错误");
     }
     
-    protected int code;
+    public int code;                    // 错误编码
     
-    protected String msg;
+    public String msg;                  // 错误原因描述
     
     public ErrorInfo(int code) {
-        this.code = code;
-        msg = Util.getString(errorMap.get(code), "");
+        msg = errorMap.get(this.code = code);
     }
 }

@@ -1,6 +1,6 @@
 package protocol.java.stream;
 
-import engine.java.util.io.ByteDataUtil.ByteData;
+import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -9,7 +9,7 @@ import java.io.IOException;
 /**
  * 推送给客户端的错误信息
  */
-public class ErrorInfo extends protocol.java.json.ErrorInfo implements ByteData {
+public class ErrorInfo extends protocol.java.json.ErrorInfo implements ProtocolData {
 
     public static final int CMD = ErrorInfo.class.hashCode();
     

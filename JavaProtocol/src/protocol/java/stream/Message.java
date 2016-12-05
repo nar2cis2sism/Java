@@ -1,6 +1,6 @@
 package protocol.java.stream;
 
-import engine.java.util.io.ByteDataUtil.ByteData;
+import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -9,7 +9,7 @@ import java.io.IOException;
 /**
  * 聊天消息
  */
-public class Message implements ByteData {
+public class Message implements ProtocolData {
 
     public static final int CMD = Message.class.hashCode();
     

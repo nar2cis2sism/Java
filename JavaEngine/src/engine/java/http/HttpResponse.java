@@ -17,7 +17,6 @@ import java.util.Map;
  * @version N
  * @since 6/6/2015
  */
-
 public class HttpResponse {
     
     private final int code;
@@ -45,7 +44,11 @@ public class HttpResponse {
         return reason;
     }
     
-    public InputStream getContent() {
+    public byte[] getContent() {
+        return content;
+    }
+    
+    public InputStream getInputStream() {
         return new ByteArrayInputStream(content);
     }
     
@@ -89,7 +92,6 @@ public class HttpResponse {
     /**
      * 获取头信息
      */
-
     public String getHeader(String key) {
         return getHeaderField(key);
     }

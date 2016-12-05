@@ -8,12 +8,16 @@ public class LogUtil {
 
     private static final int CURRENT_STACK_FRAME = 3;
 
+    public static final StackTraceElement getCurrentStackFrame() {
+        return getStackFrame(CURRENT_STACK_FRAME);
+    }
+
     public static final StackTraceElement getCallerStackFrame() {
         return getStackFrame(CURRENT_STACK_FRAME + 1);
     }
 
-    public static final StackTraceElement getCurrentStackFrame() {
-        return getStackFrame(CURRENT_STACK_FRAME);
+    public static final StackTraceElement getSuperCallerStackFrame() {
+        return getStackFrame(CURRENT_STACK_FRAME + 2);
     }
 
     private static final StackTraceElement getStackFrame(int index) {
