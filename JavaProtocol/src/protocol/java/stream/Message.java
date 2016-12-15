@@ -30,4 +30,14 @@ public class Message implements ProtocolData {
         to = dis.readLong();
         content = dis.readUTF();
     }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder()
+        .append("from=").append(from).append(",")
+        .append("to=").append(to).append(",")
+        .append("content=").append(content).append(",");
+        
+        return sb.toString();
+    }
 }

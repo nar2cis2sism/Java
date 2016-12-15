@@ -251,6 +251,7 @@ public final class ProtocolWrapper {
                         flag |= 0x02;
                     } catch (Exception e) {
                         // Keep origin data.
+                        e.printStackTrace();
                     }
                 }
                 
