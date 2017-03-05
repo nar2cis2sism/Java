@@ -26,6 +26,8 @@ public class ErrorInfo {
     
     public String msg;                  // 错误原因描述
     
+    public ErrorInfo() {}
+    
     public ErrorInfo(int code) {
         msg = errorMap.get(this.code = code);
     }
