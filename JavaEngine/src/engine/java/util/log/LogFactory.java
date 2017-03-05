@@ -1,4 +1,4 @@
-package engine.java.log;
+package engine.java.util.log;
 
 import java.io.File;
 import java.io.FileWriter;

@@ -1,4 +1,4 @@
-package engine.java.db;
+package engine.java.dao.db;
 
 public class DBException extends RuntimeException {
 

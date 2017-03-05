@@ -1,14 +1,14 @@
 package engine.java.dao;
 
-import static engine.java.log.LogFactory.LOG.log;
+import static engine.java.util.log.LogFactory.LOG.log;
 import engine.java.dao.DAOTemplate.DAOClause.DAOParam;
 import engine.java.dao.annotation.DAOPrimaryKey;
 import engine.java.dao.annotation.DAOProperty;
 import engine.java.dao.annotation.DAOTable;
-import engine.java.db.DataBaseConnection;
-import engine.java.log.LogFactory;
-import engine.java.log.LogUtil;
+import engine.java.dao.db.DataBaseConnection;
 import engine.java.util.Pair;
+import engine.java.util.log.LogFactory;
+import engine.java.util.log.LogUtil;
 import engine.java.util.string.TextUtils;
 
 import java.lang.reflect.Array;

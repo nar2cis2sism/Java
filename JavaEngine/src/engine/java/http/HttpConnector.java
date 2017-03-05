@@ -1,7 +1,7 @@
 package engine.java.http;
 
-import engine.java.log.LogFactory;
-import engine.java.log.LogFactory.LOG;
+import engine.java.util.log.LogFactory;
+import engine.java.util.log.LogFactory.LOG;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;

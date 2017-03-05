@@ -8,7 +8,7 @@ import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import engine.java.log.LogFactory.LOG;
+import engine.java.util.log.LogFactory.LOG;
 
 /**
  常见日期格式化转换符

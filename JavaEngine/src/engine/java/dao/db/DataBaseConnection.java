@@ -1,4 +1,4 @@
-package engine.java.db;
+package engine.java.dao.db;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import engine.java.log.LogFactory.LOG;
+import engine.java.util.log.LogFactory.LOG;
 
 /**
  * 数据库连接类，实现了连接池和代理机制
