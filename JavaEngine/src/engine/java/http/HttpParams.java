@@ -17,7 +17,6 @@ import javax.net.ssl.X509TrustManager;
  * @version N
  * @since 6/6/2015
  */
-
 public class HttpParams {
     
     private Boolean instanceFollowRedirects;
@@ -37,18 +36,20 @@ public class HttpParams {
     HttpParams() {}
 
     /**
+     * 设置是否自动处理重定向
+     * 
      * @param followRedirects 默认为true
      */
-
     public HttpParams setRedirecting(boolean followRedirects) {
         instanceFollowRedirects = followRedirects;
         return this;
     }
     
     /**
+     * 设置是否使用缓存
+     * 
      * @param value 默认为true
      */
-
     public HttpParams setUseCaches(boolean value) {
         useCaches = value;
         return this;
@@ -57,7 +58,6 @@ public class HttpParams {
     /**
      * @param value 默认为false
      */
-    
     public HttpParams setAuthenticating(boolean value) {
         allowUserInteraction = value;
         return this;
@@ -73,7 +73,6 @@ public class HttpParams {
      * 
      * @param timeout 单位：毫秒
      */
-
     public HttpParams setConnectTimeout(int timeout) {
         connectTimeout = timeout;
         return this;
@@ -84,7 +83,6 @@ public class HttpParams {
      * 
      * @param timeout 单位：毫秒
      */
-
     public HttpParams setReadTimeout(int timeout) {
         readTimeout = timeout;
         return this;
@@ -93,7 +91,6 @@ public class HttpParams {
     /**
      * 对HTTPS连接进行设置
      */
-    
     public void setupHttps(Boolean supportHttps) {
         this.supportHttps = supportHttps;
     }

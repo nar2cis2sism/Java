@@ -4,8 +4,9 @@ package engine.java.dao.db;
  * 数据库驱动
  * 
  * @author Daimon
+ * @version N
+ * @since 6/6/2016
  */
-
 public class DatabaseDriver {
 	
 	private static final String DRIVER_MYSQL = "com.mysql.jdbc.Driver";

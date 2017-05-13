@@ -12,7 +12,6 @@ import java.lang.annotation.Target;
  * @version N
  * @since 6/6/2014
  */
-
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DAOProperty {

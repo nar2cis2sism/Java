@@ -53,16 +53,10 @@ public class HttpResponse {
     }
     
     String getHeaderField(String key) {
-        if (headers == null)
-        {
-            return null;
-        }
+        if (headers == null) return null;
         
         List<String> list = headers.get(key);
-        if (list == null)
-        {
-            return null;
-        }
+        if (list == null) return null;
         
         return TextUtils.join(",", list);
     }

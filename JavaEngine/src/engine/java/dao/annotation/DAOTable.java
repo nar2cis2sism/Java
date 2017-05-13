@@ -12,7 +12,6 @@ import java.lang.annotation.Target;
  * @version N
  * @since 6/6/2014
  */
-
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DAOTable {

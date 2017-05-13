@@ -7,15 +7,13 @@ package engine.java.dao;
  * @version N
  * @since 6/6/2014
  */
-
 public final class Page {
 
-    private int firstPage;
+    private int firstPage = 1;
     private int lastPage;
-    private boolean startFromZero = true;       // Do not be fooled by it's initial value
+    private boolean startFromZero;
 
     private int totalPage;						// 总页数
-
     private int currentPage;					// 当前页数(default start from 1)
 
     private int totalRecord;                    // 总记录条数
@@ -28,19 +26,18 @@ public final class Page {
     /**
      * @param pageSize Must be > 0
      */
-
     public Page(int pageSize) {
         this(pageSize, 0);
     }
 
     public Page(int pageSize, int totalRecord) {
-        validPageSize(pageSize);
+        checkPageSize(pageSize);
         this.pageSize = pageSize;
         switchStartFromZero(!startFromZero);
         setTotalRecord(totalRecord);
     }
 
-    private void validPageSize(int pageSize) {
+    private void checkPageSize(int pageSize) {
         if (pageSize <= 0)
         {
             throw new IllegalArgumentException("page size must be > 0");
@@ -78,7 +75,7 @@ public final class Page {
     }
 
     public void switchStartFromZero(boolean startFromZero) {
-        if (this.startFromZero ^ startFromZero)
+        if (this.startFromZero != startFromZero)
         {
             updateLastPage(firstPage = (this.startFromZero = startFromZero) ? 0 : 1);
         }
@@ -95,7 +92,6 @@ public final class Page {
      * @param totalRecord 总记录条数
      * @param pageSize 每页显示的记录数
      */
-
     private void setTotalPage(int totalRecord, int pageSize) {
         if (totalRecord % pageSize == 0)
         {
@@ -130,7 +126,7 @@ public final class Page {
     }
 
     public void setPageSize(int pageSize) {
-        validPageSize(pageSize);
+        checkPageSize(pageSize);
         if (this.pageSize != pageSize)
         {
             setTotalPage(totalRecord, this.pageSize = pageSize);
@@ -144,10 +140,8 @@ public final class Page {
     /**
      * 上翻页
      */
-
     public void previousPage() {
-        if (hasPreviousPage())
-            setCurrentPage(currentPage - 1, pageSize);
+        if (hasPreviousPage()) setCurrentPage(currentPage - 1, pageSize);
     }
 
     public boolean hasNextPage() {
@@ -157,10 +151,8 @@ public final class Page {
     /**
      * 下翻页
      */
-
     public void nextPage() {
-        if (hasNextPage())
-            setCurrentPage(currentPage + 1, pageSize);
+        if (hasNextPage()) setCurrentPage(currentPage + 1, pageSize);
     }
 
     public boolean isFirstPage() {

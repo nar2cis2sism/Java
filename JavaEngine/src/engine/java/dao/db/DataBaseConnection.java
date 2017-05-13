@@ -17,8 +17,9 @@ import engine.java.util.log.LogFactory.LOG;
  * 数据库连接类，实现了连接池和代理机制
  * 
  * @author Daimon
+ * @version N
+ * @since 6/6/2016
  */
-
 public class DataBaseConnection {
 	
 	private final String url;
@@ -111,7 +112,6 @@ public class DataBaseConnection {
 	/**
 	 * 连接的空闲数量，即可用连接
 	 */
-	
 	public int getFreeCount() {
 		return list.size();
 	}

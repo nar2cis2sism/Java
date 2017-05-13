@@ -1,7 +1,9 @@
 package engine.java.http;
 
+import engine.java.http.HttpRequest.ByteArray;
 import engine.java.util.log.LogFactory;
 import engine.java.util.log.LogFactory.LOG;
+import engine.java.util.string.TextUtils;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -14,16 +16,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Http连接器<br>
- * 需要声明权限<uses-permission android:name="android.permission.INTERNET" />
+ * Http连接器
  * 
  * @author Daimon
  * @version N
  * @since 6/6/2014
- * 
- * Daimon:HttpURLConnection
  */
-
 public class HttpConnector {
 
     public static final String CTWAP  = "10.0.0.200";              // 中国电信代理
@@ -48,8 +46,6 @@ public class HttpConnector {
 
     private int timeout;                                           // 超时时间（毫秒）
 
-    private String remark;                                         // 备注（用于日志查询）
-
     private long time;                                             // 时间（用于调试）
 
     private final AtomicBoolean isConnected = new AtomicBoolean(); // 网络是否连接完成
@@ -63,7 +59,6 @@ public class HttpConnector {
      * 
      * @param url 请求URL地址
      */
-
     public HttpConnector(String url) {
         this(url, null, null);
     }
@@ -74,8 +69,7 @@ public class HttpConnector {
      * @param url 请求URL地址
      * @param postData 请求消息数据
      */
-
-    public HttpConnector(String url, byte[] postData) {
+    public HttpConnector(String url, ByteArray postData) {
         this(url, null, postData);
     }
 
@@ -86,15 +80,13 @@ public class HttpConnector {
      * @param headers 请求头
      * @param postData 请求消息数据
      */
-
-    public HttpConnector(String url, Map<String, String> headers, byte[] postData) {
+    public HttpConnector(String url, Map<String, String> headers, ByteArray postData) {
         request = new HttpRequest(url, headers, postData);
     }
 
     /**
      * 设置请求名称
      */
-
     public HttpConnector setName(String name) {
         this.name = name;
         return this;
@@ -111,20 +103,14 @@ public class HttpConnector {
     /**
      * 设置连接参数
      */
-    
     public HttpParams getParams() {
-        if (params == null)
-        {
-            params = new HttpParams();
-        }
-        
+        if (params == null) params = new HttpParams();
         return params;
     }
 
     /**
      * 设置代理主机
      */
-
     public HttpConnector setProxy(java.net.Proxy proxy) {
         this.proxy = proxy;
         return this;
@@ -133,7 +119,6 @@ public class HttpConnector {
     /**
      * 设置代理地址（不含scheme）
      */
-
     public HttpConnector setProxyAddress(String address) {
         int port = 80;
         int index = address.indexOf(":");
@@ -152,18 +137,8 @@ public class HttpConnector {
      * 
      * @param timeout 单位：毫秒
      */
-
     public HttpConnector setTimeout(int timeout) {
         this.timeout = timeout;
-        return this;
-    }
-
-    /**
-     * 设置备注提示（输出信息到日志）
-     */
-
-    public HttpConnector setRemark(String remark) {
-        this.remark = remark;
         return this;
     }
 
@@ -179,7 +154,6 @@ public class HttpConnector {
     /**
      * 连接网络
      */
-
     public synchronized HttpResponse connect() throws Exception {
         if (isCancelled())
         {
@@ -202,10 +176,7 @@ public class HttpConnector {
             HttpResponse response = doConnect(r);
             if (!isCancelled())
             {
-                String target = null;
-                if (remark != null)
-                    log("服务器" + (target == null ? "" : "[" + target + "]") +
-                        "响应时间--" + (System.currentTimeMillis() - time) + "ms");
+                log(String.format("服务器响应时间--%dms", System.currentTimeMillis() - time));
                 
                 if (listener != null)
                 {
@@ -217,8 +188,7 @@ public class HttpConnector {
         } catch (Exception e) {
             if (!isCancelled())
             {
-                if (remark != null)
-                    log(new Exception("网络异常", e));
+                log(e);
                 
                 if (listener != null)
                 {
@@ -237,25 +207,15 @@ public class HttpConnector {
     
     protected HttpResponse doConnect(HttpRequest request) throws Exception {
         String url = request.getUrl();
-        String method = request.getMethod();
-        byte[] postData = request.getPostData();
-        Map<String, String> headers = request.getHeaders();
         
         lock.lock();
         try {
-            if (isCancelled())
-            {
-                return null;
-            }
-
-            if (remark != null)
-                log("联网请求：" + request.getUrl());
+            log("联网请求：" + url);
             
             URL href = new URL(url);
             if (proxy != null)
             {
-                if (remark != null)
-                    log("使用代理网关：" + proxy);
+                log("使用代理网关：" + proxy);
                 conn = (HttpURLConnection) href.openConnection(proxy);
             }
             else
@@ -265,6 +225,10 @@ public class HttpConnector {
         } finally {
             lock.unlock();
         }
+        
+        String method = request.getMethod();
+        byte[] postData = request.getPostData();
+        Map<String, String> headers = request.getHeaders();
         
         // 设置超时
         if (timeout > 0)
@@ -317,13 +281,12 @@ public class HttpConnector {
     /**
      * 取消网络连接
      */
-
     public void cancel() {
         if (isCancelled.compareAndSet(false, true))
         {
             close();
 
-            if (!isConnected.get() && remark != null)
+            if (!isConnected.get())
                 log("取消网络连接：" + request.getUrl());
         }
     }
@@ -331,7 +294,6 @@ public class HttpConnector {
     /**
      * 关闭网络连接
      */
-    
     private void close() {
         if (conn == null) return;
         
@@ -359,30 +321,27 @@ public class HttpConnector {
     /**
      * 日志输出
      */
-
     private void log(Object message) {
-        LOG.log(remark, message);
+        if (!TextUtils.isEmpty(name)) LOG.log(name, message);
     }
 
     /**
      * HTTP连接监听器
      */
+    public interface HttpConnectionListener {
 
-    public static interface HttpConnectionListener {
+        void connectBefore(HttpConnector conn, HttpRequest request);
 
-        public void connectBefore(HttpConnector conn, HttpRequest request);
+        void connectAfter(HttpConnector conn, HttpResponse response);
 
-        public void connectAfter(HttpConnector conn, HttpResponse response);
-
-        public void connectError(HttpConnector conn, Exception e);
+        void connectError(HttpConnector conn, Exception e);
     }
 
     /**
      * Daimon:从url中分离出主机域名
      * 
-     * @param url 下载地址
+     * @param url 主机地址
      */
-
     public static final String getHost(String url) {
         String host = null;
         String port = null;
