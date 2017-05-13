@@ -13,31 +13,37 @@ public class Message implements ProtocolData {
 
     public static final int CMD = Message.class.hashCode();
     
-    public long from;                       // 发送方uid
-    public long to;                         // 接收方uid
-    public String content;                  // 消息内容
+    public String from;                     // 发送方账号
+    public String to;                       // 接收方账号
+    public MessageBody[] body;              // 消息体
 
     @Override
     public void write(DataOutputStream dos) throws IOException {
-        dos.writeLong(from);
-        dos.writeLong(to);
-        dos.writeUTF(content);
+        dos.writeUTF(from);
+        dos.writeUTF(to);
+        int num = body == null ? 0 : body.length;
+        dos.writeInt(num);
+        if (num > 0)
+        {
+            for (MessageBody body : this.body)
+            {
+                body.write(dos);
+            }
+        }
     }
 
     @Override
     public void read(DataInputStream dis) throws IOException {
-        from = dis.readLong();
-        to = dis.readLong();
-        content = dis.readUTF();
-    }
-    
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder()
-        .append("from=").append(from).append(",")
-        .append("to=").append(to).append(",")
-        .append("content=").append(content).append(",");
-        
-        return sb.toString();
+        from = dis.readUTF();
+        to = dis.readUTF();
+        int num = dis.readInt();
+        if (num > 0)
+        {
+            body = new MessageBody[num];
+            for (int i = 0; i < num; i++)
+            {
+                (body[i] = new MessageBody()).read(dis);
+            }
+        }
     }
 }

@@ -1,17 +1,16 @@
 package protocol.java.json;
 
-
 /**
- * 好友信息
+ * 好友操作
  */
-public class FriendInfo {
+public class FriendOp {
     
-    public long friend_id;                  // 好友ID
+    public long uid;                        // 好友ID
     
     /**
-     * 1：增加
-     * 2：删除
-     * 3：更新
+     * 0：增加
+     * 1：删除
+     * 2：更新
      */
     public int op;                          // 操作指令
     
@@ -23,5 +22,5 @@ public class FriendInfo {
     
     public String avatar_url;               // 好友头像下载地址
     
-    public String friend_info_ver;          // 好友信息版本号
+    public String friend_info_ver;          // 好友资料版本号
 }
