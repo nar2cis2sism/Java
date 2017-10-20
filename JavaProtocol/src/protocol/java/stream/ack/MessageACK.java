@@ -1,10 +1,10 @@
 package protocol.java.stream.ack;
 
+import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-
-import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
 
 /**
  * 消息应答

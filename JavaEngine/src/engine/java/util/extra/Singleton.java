@@ -1,4 +1,4 @@
-package engine.java.util;
+package engine.java.util.extra;
 
 /**
  * Singleton helper class for lazily initialization.

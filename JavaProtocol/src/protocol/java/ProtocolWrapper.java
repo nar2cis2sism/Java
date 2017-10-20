@@ -33,15 +33,17 @@ public final class ProtocolWrapper {
     }
 
     private static byte[] encrypt(byte[] key, byte[] data) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"));
-        return cipher.doFinal(data);
+        return getAESCipher(key, Cipher.ENCRYPT_MODE).doFinal(data);
     }
 
     private static byte[] decrypt(byte[] key, byte[] data) throws Exception {
+        return getAESCipher(key, Cipher.DECRYPT_MODE).doFinal(data);
+    }
+    
+    private static Cipher getAESCipher(byte[] key, int mode) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"));
-        return cipher.doFinal(data);
+        cipher.init(mode, new SecretKeySpec(key, "AES"));
+        return cipher;
     }
 
     private static byte[] gzip(byte[] content) throws IOException {
@@ -84,10 +86,10 @@ public final class ProtocolWrapper {
         }
     }
     
-    public static byte[] wrap(ProtocolEntity entity) throws Exception {
+    public static byte[] wrap(ProtocolEntity entity) throws IOException {
         if (entity.body == null)
         {
-            throw new Exception("Please call function ProtocolEntiry.generateBody() before.");
+            throw new IOException("Please call ProtocolEntiry.generateBody() before.");
         }
         
         // Header
@@ -95,9 +97,9 @@ public final class ProtocolWrapper {
         
         int offset = 0;
         intToBytes(entity.packageSize, header, offset);
-        offset += 4;    // 4位，包的长度
+        offset += 4;    // 4位，包的大小
         intToBytes(entity.cmd, header, offset);
-        offset += 4;    // 4位，推送指令码
+        offset += 4;    // 4位，指令码
         intToBytes(entity.msgId, header, offset);
         offset += 4;    // 4位，信令id
         header[offset] = (byte) entity.flag;
@@ -120,9 +122,9 @@ public final class ProtocolWrapper {
         
         int offset = 0;
         int packageSize = bytesToInt(header, offset);
-        offset += 4;    // 4位，包的长度
+        offset += 4;    // 4位，包的大小
         int cmd = bytesToInt(header, offset);
-        offset += 4;    // 4位，推送指令码
+        offset += 4;    // 4位，指令码
         int msgId = bytesToInt(header, offset);
         offset += 4;    // 4位，信令id
         int flag = header[offset] & 0xff;
@@ -160,7 +162,7 @@ public final class ProtocolWrapper {
     }
 
     private static void intToBytes(int i, byte[] bs, int offset) {
-        bs[offset] = (byte) (i >> 24);
+        bs[offset]     = (byte) (i >> 24);
         bs[offset + 1] = (byte) (i >> 16);
         bs[offset + 2] = (byte) (i >> 8);
         bs[offset + 3] = (byte) i;
@@ -170,25 +172,28 @@ public final class ProtocolWrapper {
         return (bs[offset + 3] & 0xff)
             | ((bs[offset + 2] & 0xff) << 8)
             | ((bs[offset + 1] & 0xff) << 16)
-            | ((bs[offset] & 0xff) << 24);
+            | ((bs[offset]     & 0xff) << 24);
     }
     
+    /**
+     * 信令实体类
+     */
     public static final class ProtocolEntity {
 
         /**
          * 用于协议传输的数据接口
          */
-        public static interface ProtocolData {
+        public interface ProtocolData {
 
-            public void write(DataOutputStream dos) throws IOException;
+            void write(DataOutputStream dos) throws IOException;
 
-            public void read(DataInputStream dis) throws IOException;
+            void read(DataInputStream dis) throws IOException;
         }
         
+        // 信令包大小（包含信令头）
         int packageSize;
         
-        // 每条信令的唯一标示符，当发消息时对方收到了，
-        // 再重复使用msgId重发消息，该消息收不到回包，所有msgId不可复用
+        // 每条信令的唯一标识符，不可复用，0表示推送消息
         int msgId;
 
         // 指令码
@@ -197,11 +202,15 @@ public final class ProtocolWrapper {
         // 加密压缩标志
         int flag;
         
+        // 数据体
         byte[] body;
-        
         private ProtocolData data;
         
         private ProtocolEntity() {}
+        
+        public static ProtocolEntity newInstance(int msgId, ProtocolData data) {
+            return newInstance(msgId, data.getClass().hashCode(), data);
+        }
         
         public static ProtocolEntity newInstance(int msgId, int cmd, ProtocolData data) {
             ProtocolEntity entity = new ProtocolEntity();
@@ -222,7 +231,7 @@ public final class ProtocolWrapper {
         public ProtocolData getData() {
             if (data == null)
             {
-                throw new RuntimeException("Please call function ProtocolEntiry.parseBody() before.");
+                throw new RuntimeException("Please call ProtocolEntiry.parseBody() before.");
             }
             
             return data;
@@ -289,13 +298,7 @@ public final class ProtocolWrapper {
         
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder();
-            if (data != null)
-            {
-                sb.append(data.getClass().getSimpleName());
-            }
-            
-            sb
+            StringBuilder sb = new StringBuilder()
             .append("[packageSize=")
             .append(packageSize)
             .append(", cmd=")

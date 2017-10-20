@@ -1,6 +1,6 @@
-package engine.java.util.log;
+package engine.java.common;
 
-import engine.java.util.log.LogFactory.LOG;
+import engine.java.common.LogFactory.LOG;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;

@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
 
-import engine.java.util.log.LogFactory.LOG;
+import engine.java.common.LogFactory.LOG;
 
 /**
  * Tools for managing files.  Not for public consumption.

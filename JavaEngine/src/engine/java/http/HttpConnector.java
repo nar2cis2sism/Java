@@ -1,8 +1,8 @@
 package engine.java.http;
 
+import engine.java.common.LogFactory;
+import engine.java.common.LogFactory.LOG;
 import engine.java.http.HttpRequest.ByteArray;
-import engine.java.util.log.LogFactory;
-import engine.java.util.log.LogFactory.LOG;
 import engine.java.util.string.TextUtils;
 
 import java.io.OutputStream;

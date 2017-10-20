@@ -5,7 +5,7 @@ package protocol.java.json;
  */
 public class UserInfo {
     
-    public String version;                  // 用户信息版本
+    public long version;                    // 用户信息版本
 
     public String nickname;                 // 用户昵称
     

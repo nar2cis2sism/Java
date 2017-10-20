@@ -10,8 +10,6 @@ import java.io.IOException;
  * 推送给客户端的错误信息
  */
 public class ErrorInfo extends protocol.java.json.ErrorInfo implements ProtocolData {
-
-    public static final int CMD = ErrorInfo.class.hashCode();
     
     public ErrorInfo(int code) {
         super(code);

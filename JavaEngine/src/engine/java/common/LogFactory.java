@@ -1,4 +1,4 @@
-package engine.java.util.log;
+package engine.java.common;
 
 import engine.java.util.string.StringBuilderPrinter;
 import engine.java.util.string.TextUtils;

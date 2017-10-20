@@ -10,8 +10,6 @@ import java.io.IOException;
  * 聊天消息
  */
 public class Message implements ProtocolData {
-
-    public static final int CMD = Message.class.hashCode();
     
     public String from;                     // 发送方账号
     public String to;                       // 接收方账号

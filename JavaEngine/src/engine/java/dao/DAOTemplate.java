@@ -1,13 +1,13 @@
 package engine.java.dao;
 
-import static engine.java.util.log.LogFactory.LOG.log;
+import static engine.java.common.LogFactory.LOG.log;
+import engine.java.common.LogFactory;
+import engine.java.common.LogFactory.LogUtil;
 import engine.java.dao.annotation.DAOPrimaryKey;
 import engine.java.dao.annotation.DAOProperty;
 import engine.java.dao.annotation.DAOTable;
 import engine.java.dao.db.DataBaseConnection;
 import engine.java.util.Pair;
-import engine.java.util.log.LogFactory;
-import engine.java.util.log.LogFactory.LogUtil;
 import engine.java.util.string.TextUtils;
 
 import java.lang.reflect.Field;
@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 操作数据库的模板，尽量面向对象，以简化DAO层<br>
@@ -35,16 +36,6 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * @since 4/5/2015
  */
 public class DAOTemplate {
-
-    /**
-     * 数据库更新监听器
-     */
-    public interface DBUpdateListener {
-
-        void onCreate(DAOTemplate dao);
-
-        void onUpdate(DAOTemplate dao, int oldVersion, int newVersion);
-    }
 
     /**
      * 数据库事务处理
@@ -60,6 +51,11 @@ public class DAOTemplate {
     private boolean printLog = true;
 
     private final DataBaseConnection db;
+    
+    private boolean inTransaction;
+
+    private final AtomicReference<Connection> conn
+    = new AtomicReference<Connection>();
 
     /**
      * 数据库表监听器
@@ -121,6 +117,9 @@ public class DAOTemplate {
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<DAOObserver>> listeners
     = new ConcurrentHashMap<String, CopyOnWriteArraySet<DAOObserver>>(); // 表名为索引
 
+    private final CopyOnWriteArraySet<DAOObserver> pendingListeners
+    = new CopyOnWriteArraySet<DAOObserver>();
+
     public DAOTemplate(DataBaseConnection db) {
         this.db = db;
     }
@@ -137,6 +136,20 @@ public class DAOTemplate {
      */
     public void disablePrintLog(boolean disable) {
         printLog = !disable;
+    }
+
+    private Connection getConnection() throws Exception {
+        Connection conn = this.conn.get();
+        if (conn == null)
+        {
+            conn = db.getConnection();
+            if (conn == null)
+            {
+                throw new Exception("取不到数据库连接");
+            }
+        }
+    
+        return conn;
     }
 
     /******************************* 华丽丽的分割线 *******************************/
@@ -209,12 +222,40 @@ public class DAOTemplate {
     }
 
     private void dispatchChange(CopyOnWriteArraySet<DAOObserver> observers, int op) {
-        for (DAOObserver observer : observers)
+        if (inTransaction)
         {
-            if (observer.hasChange(op))
+            for (DAOObserver observer : observers)
             {
-                observer.notifyChange();
+                if (observer.hasChange(op))
+                {
+                    pendingListeners.add(observer);
+                }
             }
+        }
+        else
+        {
+            for (DAOObserver observer : observers)
+            {
+                if (observer.hasChange(op))
+                {
+                    observer.notifyChange();
+                }
+            }
+        }
+    }
+
+    private void dispatchChange(boolean success) {
+        if (success)
+        {
+            if (pendingListeners.isEmpty()) return;
+            
+            Iterator<DAOObserver> iter = pendingListeners.iterator();
+            pendingListeners.clear();
+            while (iter.hasNext()) iter.next().notifyChange();
+        }
+        else
+        {
+            pendingListeners.clear();
         }
     }
 
@@ -262,29 +303,22 @@ public class DAOTemplate {
     public void execute(String sql) {
         if (TextUtils.isEmpty(sql)) return;
 
-        Connection conn = db.getConnection();
-        if (conn == null)
-        {
-            log("取不到数据库连接");
-        }
-        else
-        {
+        try {
+            Connection conn = getConnection();
+            Statement st = conn.createStatement();
             try {
-                Statement st = conn.createStatement();
-                try {
-                    String[] strs = sql.split(";");
-                    for (String s : strs)
-                    {
-                        if (printLog) LOG_SQL(s);
-                        st.execute(s);
-                    }
-                } finally {
-                    st.close();
-                    conn.close();
+                String[] strs = sql.split(";");
+                for (String s : strs)
+                {
+                    if (printLog) LOG_SQL(s);
+                    st.execute(s);
                 }
-            } catch (Exception e) {
-                processException(e);
+            } finally {
+                st.close();
+                conn.close();
             }
+        } catch (Exception e) {
+            processException(e);
         }
     }
 
@@ -301,15 +335,50 @@ public class DAOTemplate {
         }
     }
 
+    /**
+     * 执行事务
+     */
+    public boolean execute(DAOTransaction transaction) {
+        boolean success = false;
+        
+        try {
+            Connection conn = getConnection();
+            conn.setAutoCommit(false);
+            inTransaction = true;
+            if (printLog) log(LogUtil.getCallerStackFrame(), "事务开始");
+            try {
+                if (transaction.execute(this))
+                {
+                    success = true;
+                }
+            } finally {
+                if (success)
+                {
+                    conn.commit();
+                }
+                else
+                {
+                    conn.rollback();
+                }
+                
+                conn.setAutoCommit(true);
+                inTransaction = false;
+                if (printLog) log(LogUtil.getCallerStackFrame(), "事务结束:success=" + success);
+                dispatchChange(success);
+            }
+        } catch (DAOException e) {
+            LOG_DAOException(e);
+        } catch (Exception e) {
+            LOG_DAOException(new DAOException(e));
+        }
+
+        return success;
+    }
+
     private <D> D execute(String sql, Object[] bindArgs, Class<D> returnType) throws Exception {
         if (printLog) LOG_SQL(sql, bindArgs);
 
-        Connection conn = db.getConnection();
-        if (conn == null)
-        {
-            throw new Exception("取不到数据库连接");
-        }
-        
+        Connection conn = getConnection();
         try {
             PreparedStatement ps = conn.prepareStatement(sql);
             if (bindArgs != null && bindArgs.length > 0)
@@ -450,7 +519,7 @@ public class DAOTemplate {
                     "INTEGER" : translateType(primaryKey.getDataType()))
             .append(" PRIMARY KEY")
             .append(primaryKey.isAutoincrement() ?
-                    " AUTOINCREMENT" : "")
+                    " AUTO_INCREMENT" : "")
             .append(",\n");
         }
 
@@ -644,15 +713,9 @@ public class DAOTemplate {
 
             sql.append(")").append(values).deleteCharAt(sql.length() - 1);
 
-            Connection conn = db.getConnection();
-            if (conn == null)
-            {
-                throw new Exception("取不到数据库连接");
-            }
-            
+            Connection conn = getConnection();
             boolean success = true;
-            conn.setAutoCommit(false);
-            if (printLog) LOG_SQL("事务开始");
+            if (printLog) LOG_SQL(sql.toString(), bindArgs.toArray());
             try {
                 PreparedStatement ps = conn.prepareStatement(sql.toString());
                 for (Object o : obj)
@@ -1022,8 +1085,8 @@ public class DAOTemplate {
                 }
             }
 
-            // 当没有注解的时候默认用类的名称作为表名,并把点(.)替换为下划线(_)
-            return c.getName().replace('.', '_');
+            // 当没有注解的时候默认用类的名称作为表名
+            return c.getSimpleName();
         }
 
         public static Table getTable(Class<?> c) {
@@ -1577,19 +1640,10 @@ public class DAOTemplate {
 
         /**
          * 使用分页技术
-         *
-         * @return 需设置分页参数
          */
-        public Page usePage() {
-            if (page == null) page = new Page(10);
-            return page;
-        }
-
-        /**
-         * 停止使用分页技术
-         */
-        public void stopPage() {
-            page = null;
+        public DAOQueryBuilder<T> usePage(Page page) {
+            this.page = page;
+            return this;
         }
 
         private static final int CONSTRAINT_COUNT = 1;
@@ -1789,12 +1843,14 @@ public class DAOTemplate {
             StringBuilder sb = new StringBuilder(sql);
             int i = 0, index = 0;
 
-            while ((index = sql.indexOf("?", index)) >= 0)
+            while ((index = sb.indexOf("?", index)) >= 0)
             {
                 String arg = String.valueOf(bindArgs[i++]);
                 sb.replace(index, index + 1, arg);
                 index += arg.length();
             }
+            
+            sql = sb.toString();
         }
 
         LOG_SQL(sql);

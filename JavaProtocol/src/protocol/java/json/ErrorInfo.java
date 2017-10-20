@@ -19,6 +19,8 @@ public class ErrorInfo {
         errorMap.put(404, "用户不存在");
         errorMap.put(407, "Token已失效");
         errorMap.put(410, "已在其他地方登录");
+        errorMap.put(415, "数据已存在");
+        errorMap.put(416, "数据不同步");
         errorMap.put(500, "服务器内部错误");
     }
     

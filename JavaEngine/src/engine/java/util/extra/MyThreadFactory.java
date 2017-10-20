@@ -1,4 +1,4 @@
-package engine.java.util;
+package engine.java.util.extra;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
