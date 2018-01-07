@@ -7,6 +7,7 @@ import engine.java.dao.annotation.DAOPrimaryKey;
 import engine.java.dao.annotation.DAOProperty;
 import engine.java.dao.annotation.DAOTable;
 import engine.java.dao.db.DataBaseConnection;
+import engine.java.dao.util.Page;
 import engine.java.util.Pair;
 import engine.java.util.string.TextUtils;
 
@@ -1672,9 +1673,9 @@ public class DAOTemplate {
             {
                 sql
                 .append(" LIMIT ")
-                .append(page.getPageSize())
+                .append(page.getBeginRecord())
                 .append(",")
-                .append(page.getBeginRecord());
+                .append(page.getPageSize());
             }
         }
 
