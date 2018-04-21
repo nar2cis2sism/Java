@@ -1,7 +1,7 @@
 package protocol.java.stream.ack;
 
 import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
-import protocol.java.stream.Message;
+import protocol.java.stream.req.Message;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;

@@ -1,5 +1,6 @@
 package protocol.java.stream;
 
+import protocol.java.ProtocolHelper;
 import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
 
 import java.io.DataInputStream;
@@ -18,12 +19,12 @@ public class ErrorInfo extends protocol.java.json.ErrorInfo implements ProtocolD
     @Override
     public void write(DataOutputStream dos) throws IOException {
         dos.writeInt(code);
-        dos.writeUTF(msg);
+        ProtocolHelper.writeUTF(dos, msg);
     }
 
     @Override
     public void read(DataInputStream dis) throws IOException {
         code = dis.readInt();
-        msg = dis.readUTF();
+        msg = ProtocolHelper.readUTF(dis);
     }
 }

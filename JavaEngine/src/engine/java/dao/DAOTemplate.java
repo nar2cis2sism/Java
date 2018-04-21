@@ -1779,7 +1779,7 @@ public class DAOTemplate {
         /**
          * 获取满足条件的数据集合
          */
-        public Collection<T> getAll() {
+        public List<T> getAll() {
             build(0);
             try {
                 ResultSet rs = execute(getSql(), getArgs(), ResultSet.class);

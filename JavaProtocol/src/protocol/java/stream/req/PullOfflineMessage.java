@@ -1,4 +1,4 @@
-package protocol.java.stream;
+package protocol.java.stream.req;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;

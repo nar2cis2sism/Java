@@ -209,7 +209,7 @@ public final class ProtocolWrapper {
         private ProtocolEntity() {}
         
         public static ProtocolEntity newInstance(int msgId, ProtocolData data) {
-            return newInstance(msgId, data.getClass().hashCode(), data);
+            return newInstance(msgId, data.getClass().getName().hashCode(), data);
         }
         
         public static ProtocolEntity newInstance(int msgId, int cmd, ProtocolData data) {
