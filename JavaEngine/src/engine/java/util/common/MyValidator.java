@@ -1,4 +1,4 @@
-package engine.java.common;
+package engine.java.util.common;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -1,7 +1,7 @@
-package engine.java.common;
+package engine.java.util.log;
 
-import engine.java.util.string.StringBuilderPrinter;
-import engine.java.util.string.TextUtils;
+import engine.java.util.common.CalendarFormat;
+import engine.java.util.common.TextUtils;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -30,18 +30,12 @@ public final class LogFactory {
 
     private static final ConcurrentHashMap<String, String> map
     = new ConcurrentHashMap<String, String>();                  // [类名-日志文件]映射表
+    private static final String MAPPING_PREFIX = "mapping:";
 
     private static final ConcurrentHashMap<String, LogFile> logs
     = new ConcurrentHashMap<String, LogFile>();                 // 日志文件查询表
 
     private static final String DEFAULT_LOG_FILE = "log.txt";   // 默认日志输出文件
-
-    /**
-     * 开启/关闭日志记录
-     */
-    public static void enableLOG(boolean enable) {
-        logEnabled.compareAndSet(!enable, enable);
-    }
     
     /**
      * 初始化
@@ -51,7 +45,14 @@ public final class LogFactory {
     public static void init(File logDir) {
         LogFactory.logDir = logDir;
     }
-    
+
+    /**
+     * 开启/关闭日志记录
+     */
+    public static void enableLOG(boolean enable) {
+        logEnabled.compareAndSet(!enable, enable);
+    }
+
     /**
      * 日志功能是否开启
      */
@@ -62,7 +63,7 @@ public final class LogFactory {
     /**
      * 获取日志输出目录
      */
-    private static synchronized File getLogDir() {
+    private static synchronized File _getLogDir() {
         if (logDir == null)
         {
             throw new NullPointerException("未设置日志输出目录");
@@ -88,27 +89,25 @@ public final class LogFactory {
      */
     public static void addLogFile(Class<?> logClass, Class<?> mapClass) {
         String logFile = map.get(mapClass.getName());
-        if (logFile != null)
+        if (logFile == null)
         {
-            map.putIfAbsent(logClass.getName(), logFile);
+            logFile = MAPPING_PREFIX + mapClass.getName();
         }
+        
+        map.putIfAbsent(logClass.getName(), logFile);
     }
 
     /**
      * 操作日志文件
      */
     private static LogFile getLogFile(String className) {
-        String logFile;
-        if (TextUtils.isEmpty(className))
-        {
-            logFile = DEFAULT_LOG_FILE;
-        }
-        else
+        String logFile = null;
+        if (!TextUtils.isEmpty(className))
         {
             logFile = map.get(className);
-            if (logFile == null)
+            if (logFile != null && logFile.startsWith(MAPPING_PREFIX))
             {
-                logFile = DEFAULT_LOG_FILE;
+                map.put(className, logFile = map.get(logFile.substring(MAPPING_PREFIX.length())));
             }
         }
 
@@ -119,10 +118,15 @@ public final class LogFactory {
      * @param logFile 日志文件名称
      */
     private static LogFile getOrCreateLogFile(String logFile) {
+        if (logFile == null)
+        {
+            logFile = DEFAULT_LOG_FILE;
+        }
+        
         LogFile log = logs.get(logFile);
         if (log == null)
         {
-            logs.putIfAbsent(logFile, new LogFile(new File(getLogDir(), logFile)));
+            logs.putIfAbsent(logFile, new LogFile(new File(_getLogDir(), logFile)));
             log = logs.get(logFile);
         }
         
@@ -132,21 +136,24 @@ public final class LogFactory {
     /**
      * 需要导出日志时调用此方法获取日志目录（会阻塞当前线程）
      */
-    public static File flush() {
+    public static File getLogDir() {
         for (LogFile log : logs.values())
         {
             try {
                 log.flush();
             } catch (Exception e) {
-                System.out.println(new LogFile.LogRecord(
-                        LogFactory.class.getName(), 
-                        String.format("Failed to flush Log:\n%s,cause:%s", 
-                                log, LogUtil.getExceptionInfo(e)), 
-                        System.currentTimeMillis()));
+                logw(LogFactory.class.getName(),
+                        String.format("Failed to flush Log:\n%s", log), e);
+            
             }
         }
         
-        return getLogDir();
+        return _getLogDir();
+    }
+    
+    private static void logw(String tag, String msg, Throwable tr) {
+        if (tr != null) msg += ",cause:" + LogUtil.getExceptionInfo(tr);
+        System.out.println(new LogFile.LogRecord(tag, msg, System.currentTimeMillis()));
     }
 
     /**
@@ -156,7 +163,7 @@ public final class LogFactory {
 
         private static final int CAPACITY = 10;
 
-        private static final ConcurrentLinkedQueue<LogRecord> logs
+        private final ConcurrentLinkedQueue<LogRecord> logs
         = new ConcurrentLinkedQueue<LogRecord>();
 
         private final File logFile;
@@ -167,8 +174,8 @@ public final class LogFactory {
             this.logFile = logFile;
         }
 
-        public void LOG(LogRecord record) {
-            logs.offer(record);
+        public void LOG(String tag, String message, long timeInMillis) {
+            logs.offer(new LogRecord(tag, message, timeInMillis));
             if (logs.size() >= CAPACITY && isFlushing.compareAndSet(false, true))
             {
                 new Thread(this, logFile.getName()).start();
@@ -212,11 +219,9 @@ public final class LogFactory {
             try {
                 flush();
             } catch (Exception e) {
-                System.out.println(new LogRecord(
-                        getClass().getName(), 
-                        String.format("Failed to write into Log (%s),cause:%s", 
-                                logFile.getName(), LogUtil.getExceptionInfo(e)), 
-                        System.currentTimeMillis()));
+                logw(getClass().getName(),
+                        String.format("Failed to write into Log (%s)",
+                                logFile.getName()), e);
             }
 
             isFlushing.set(false);
@@ -273,13 +278,6 @@ public final class LogFactory {
     public static final class LOG {
         
         /**
-         * 输出日志（空行）
-         */
-        public static void log() {
-            log("", null);
-        }
-
-        /**
          * 输出日志（取调用函数的类名+方法名作为标签）
          * 
          * @param message 日志内容
@@ -324,19 +322,18 @@ public final class LogFactory {
         }
 
         private static void log(String className, String tag, Object message, long timeInMillis) {
-            LogFile.LogRecord record = new LogFile.LogRecord(tag, getMessage(message), timeInMillis);
-            
+            String msg = getMessage(message);
             if (isLogEnabled())
             {
                 LogFile log = getLogFile(className);
                 if (log != null)
                 {
-                    log.LOG(record);
+                    log.LOG(tag, msg, timeInMillis);
                 }
             }
             else
             {
-                System.out.println(record);
+                logw(tag, msg, null);
             }
         }
         
@@ -418,7 +415,7 @@ public final class LogFactory {
         }
 
         /**
-         * Daimon:获取固定长度文本
+         * Daimon:获取固定字节长度文本，超过用省略号代替，不足用空格填充
          */
         public static String getFixedText(String text, int length) {
             StringBuilder sb = new StringBuilder();

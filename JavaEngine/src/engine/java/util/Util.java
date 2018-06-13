@@ -1,14 +1,13 @@
 package engine.java.util;
 
-import engine.java.common.CalendarFormat;
-import engine.java.util.file.FileManager;
-import engine.java.util.string.TextUtils;
+import engine.java.util.common.TextUtils;
 
-import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -19,36 +18,14 @@ import java.util.Random;
  * @version N
  * @since 3/26/2012
  */
-
 public final class Util {
 
     private static final HashMap<String, Object> buffer
     = new HashMap<String, Object>();   // 变量缓存表
 
     /**
-     * 将键值对拼装成XML格式的字符串
-     */
-
-    public static String getXMLString(String key, String value) {
-        if (value != null)
-        {
-            if (value.length() == 0)
-            {
-                return String.format("<%s />", key);
-            }
-            else
-            {
-                return String.format("<%s>%s</%s>", key, value, key);
-            }
-        }
-
-        return "";
-    }
-
-    /**
      * 从字符串中取boolean型值
      */
-
     public static boolean getBoolean(String s) {
         if (!TextUtils.isEmpty(s))
         {
@@ -72,7 +49,6 @@ public final class Util {
      * 
      * @param defaultValue 如果字符串格式有错，则返回默认值
      */
-
     public static int getInt(String s, int defaultValue) {
         try {
             return Integer.parseInt(s);
@@ -86,7 +62,6 @@ public final class Util {
      * 
      * @param defaultValue 默认值
      */
-
     public static String getString(String s, String defaultValue) {
         return !TextUtils.isEmpty(s) ? s : defaultValue;
     }
@@ -96,7 +71,6 @@ public final class Util {
      * 
      * @param defaultValue 默认值
      */
-
     public static String getString(Object obj, String defaultValue) {
         return obj == null ? defaultValue : obj.toString();
     }
@@ -107,7 +81,6 @@ public final class Util {
      * @param min 最小值（包含）
      * @param max 最大值（不包含）
      */
-
     public static int getRandom(int min, int max) {
         final String RANDOM = "random";
         Random random;
@@ -129,7 +102,6 @@ public final class Util {
      * @param min 最小值（包含）
      * @param max 最大值（不包含）
      */
-
     public static int getRandom(Random random, int min, int max) {
         if (random == null)
         {
@@ -142,7 +114,6 @@ public final class Util {
     /**
      * 将金钱格式化为国际货币的显示形式（如1,000,000）
      */
-
     public static String formatMoney(double money) {
         return formatNumber(money, ",##0");
     }
@@ -150,7 +121,6 @@ public final class Util {
     /**
      * 格式化数字
      */
-
     public static String formatNumber(double number, String pattern) {
         return getDecimalFormat(pattern).format(number);
     }
@@ -158,7 +128,6 @@ public final class Util {
     /**
      * 解析数字
      */
-
     public static Number parseNumber(String number, String pattern) {
         try {
             return getDecimalFormat(pattern).parse(number);
@@ -190,17 +159,15 @@ public final class Util {
      * 
      * @param time 单位：秒
      */
-
     public static Date getTimeTo2000(int time) {
         return new Date(getTime2000Milliseconds() + time * 1000);
     }
 
     /**
-     * 基准为2000年的时间转换为基准为1970年的时间
+     * 基准为1970年的时间转换为基准为2000年的时间
      * 
      * @return 单位：秒
      */
-
     public static int getTimeTo2000(Date time) {
         return (int) ((time.getTime() - getTime2000Milliseconds()) / 1000);
     }
@@ -215,39 +182,39 @@ public final class Util {
         else
         {
             buffer.put(TIME2000MILLISECONDS, time2000Milliseconds =
-                    CalendarFormat.parse("2000-01-01 00:00:00").getTimeInMillis()
-                  - CalendarFormat.parse("1970-01-01 00:00:00").getTimeInMillis());
+                    new GregorianCalendar(2000, 0, 1).getTimeInMillis()
+                  - new GregorianCalendar(1970, 0, 1).getTimeInMillis());
         }
 
         return time2000Milliseconds;
     }
 
     /**
-     * Do not allow media scan
+     * 打印对象信息
      */
-
-    public static void disableMediaScan(File file) {
-        FileManager.createFileIfNecessary(new File(file.getParentFile(), ".nomedia"));
-    }
-
     public static String toString(Object obj) {
         if (obj == null)
         {
-            return "null";
+            return "Null";
         }
 
         try {
-            StringBuilder sb = new StringBuilder("[").append(obj.getClass().getSimpleName()).append("]");
+            StringBuilder sb = new StringBuilder().append(obj.getClass().getSimpleName()).append("[");
             for (Class<?> c = obj.getClass(); c != Object.class; c = c.getSuperclass())
             {
                 for (Field field : c.getDeclaredFields())
                 {
+                    if (Modifier.isStatic(field.getModifiers()))
+                    {
+                        continue;
+                    }
+                    
                     field.setAccessible(true);
-                    sb.append("\n").append(field.getName()).append(":").append(field.get(obj));
+                    sb.append(field.getName()).append("=").append(field.get(obj)).append(",");
                 }
             }
 
-            return sb.toString();
+            return sb.deleteCharAt(sb.length() - 1).append("]").toString();
         } catch (Exception e) {
             return obj.toString();
         }
@@ -278,26 +245,5 @@ public final class Util {
         }
 
         return null;
-    }
-
-    /**
-     * 我们认为长宽比大于4:3的就为宽屏
-     */
-
-    public static boolean isWideScreen(int width, int height) {
-        int max = width;
-        int min = height;
-        if (max < min)
-        {
-            max = max ^ min;
-            min = max ^ min;
-            max = max ^ min;
-        }
-        
-        return max * 3 > min * 4;
-    }
-
-    public static int computeAlpha(float percent) {
-        return Math.round((Byte.MAX_VALUE - Byte.MIN_VALUE) * percent / 100);
     }
 }

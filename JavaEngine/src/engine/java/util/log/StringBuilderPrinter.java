@@ -1,6 +1,6 @@
-package engine.java.util.string;
+package engine.java.util.log;
 
-public class StringBuilderPrinter {
+class StringBuilderPrinter {
     private final StringBuilder mBuilder;
     
     /**

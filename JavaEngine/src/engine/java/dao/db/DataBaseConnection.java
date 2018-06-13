@@ -1,5 +1,7 @@
 package engine.java.dao.db;
 
+import engine.java.util.log.LogFactory.LOG;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -10,8 +12,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
-import engine.java.common.LogFactory.LOG;
 
 /**
  * 数据库连接类，实现了连接池和代理机制
@@ -82,12 +82,12 @@ public class DataBaseConnection {
 		return conn;
 	}
 	
-	boolean isPendingCreate() {
+	private boolean isPendingCreate() {
 		int size = list.size();
 		return size < minConnectionNum && size + active_count < maxConnectionNum;
 	}
 	
-	void createConnection() {
+	private void createConnection() {
 		Connection conn = null;
 		try {
 			conn = DriverManager.getConnection(url, username, password);

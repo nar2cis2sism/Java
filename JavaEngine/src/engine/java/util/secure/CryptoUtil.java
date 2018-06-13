@@ -16,15 +16,13 @@ import javax.crypto.spec.DESKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Android系统提供的各种算法工具
+ * 操作系统提供的各种算法工具
  * 
  * @author Daimon
  * @version N
  * @since 7/4/2013
  */
-
 public final class CryptoUtil {
-
     
     /**
      * Message-Digest Algorithm 5(信息-摘要算法)<br>
@@ -35,7 +33,6 @@ public final class CryptoUtil {
     public static byte[] md5(byte[] bs) {
         return digest(bs, "MD5");
     }
-
 
     /**
      * SHA（Secure Hash Algorithm）安全哈希算法<br>

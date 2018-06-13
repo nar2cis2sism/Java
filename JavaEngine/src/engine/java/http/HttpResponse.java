@@ -1,7 +1,7 @@
 package engine.java.http;
 
+import engine.java.util.common.TextUtils;
 import engine.java.util.io.IOUtil;
-import engine.java.util.string.TextUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -53,10 +53,21 @@ public class HttpResponse {
     }
     
     String getHeaderField(String key) {
-        if (headers == null) return null;
+        if (headers == null)
+        {
+            return null;
+        }
         
         List<String> list = headers.get(key);
-        if (list == null) return null;
+        if (list == null || list.isEmpty())
+        {
+            return null;
+        }
+        
+        if (list.size() == 1)
+        {
+            return list.get(0);
+        }
         
         return TextUtils.join(",", list);
     }
@@ -69,6 +80,7 @@ public class HttpResponse {
         }
     }
     
+    @SuppressWarnings("deprecation")
     private long getHeaderFieldDate(String field, long defaultValue) {
         String date = getHeaderField(field);
         if (date == null)
@@ -102,6 +114,10 @@ public class HttpResponse {
         return getHeaderField("Content-Type");
     }
     
+    public String getUserAgent() {
+        return getHeaderField("User-Agent");
+    }
+    
     public long getDate() {
         return getHeaderFieldDate("Date", 0);
     }
@@ -116,5 +132,9 @@ public class HttpResponse {
     
     public String getLocation() {
         return getHeaderField("Location");
+    }
+    
+    public String getHost() {
+        return getHeaderField("Host");
     }
 }

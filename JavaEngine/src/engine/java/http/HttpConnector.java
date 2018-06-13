@@ -1,9 +1,9 @@
 package engine.java.http;
 
-import engine.java.common.LogFactory;
-import engine.java.common.LogFactory.LOG;
-import engine.java.http.HttpRequest.ByteArray;
-import engine.java.util.string.TextUtils;
+import engine.java.http.HttpRequest.HttpEntity;
+import engine.java.util.common.TextUtils;
+import engine.java.util.log.LogFactory;
+import engine.java.util.log.LogFactory.LOG;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -46,8 +46,6 @@ public class HttpConnector {
 
     private int timeout;                                           // 超时时间（毫秒）
 
-    private long time;                                             // 时间（用于调试）
-
     private final AtomicBoolean isConnected = new AtomicBoolean(); // 网络是否连接完成
 
     private final AtomicBoolean isCancelled = new AtomicBoolean(); // 是否取消网络连接
@@ -67,10 +65,10 @@ public class HttpConnector {
      * POST请求
      * 
      * @param url 请求URL地址
-     * @param postData 请求消息数据
+     * @param entity 请求数据
      */
-    public HttpConnector(String url, ByteArray postData) {
-        this(url, null, postData);
+    public HttpConnector(String url, HttpEntity entity) {
+        this(url, null, entity);
     }
 
     /**
@@ -78,10 +76,10 @@ public class HttpConnector {
      * 
      * @param url 请求URL地址
      * @param headers 请求头
-     * @param postData 请求消息数据
+     * @param entity 请求数据
      */
-    public HttpConnector(String url, Map<String, String> headers, ByteArray postData) {
-        request = new HttpRequest(url, headers, postData);
+    public HttpConnector(String url, Map<String, String> headers, HttpEntity entity) {
+        request = new HttpRequest(url, headers, entity);
     }
 
     /**
@@ -160,7 +158,7 @@ public class HttpConnector {
             return null;
         }
         
-        // 为了防止请求被拦截更改数据
+        // 为了防止请求被拦截篡改数据
         HttpRequest r = request.clone();
         if (listener != null)
         {
@@ -171,7 +169,8 @@ public class HttpConnector {
             }
         }
 
-        time = System.currentTimeMillis();
+        log("联网请求：" + request.getUrl());
+        long time = System.currentTimeMillis();
         try {
             HttpResponse response = doConnect(r);
             if (!isCancelled())
@@ -206,13 +205,9 @@ public class HttpConnector {
     }
     
     protected HttpResponse doConnect(HttpRequest request) throws Exception {
-        String url = request.getUrl();
-        
         lock.lock();
         try {
-            log("联网请求：" + url);
-            
-            URL href = new URL(url);
+            URL href = new URL(request.getUrl());
             if (proxy != null)
             {
                 log("使用代理网关：" + proxy);
@@ -227,7 +222,7 @@ public class HttpConnector {
         }
         
         String method = request.getMethod();
-        byte[] postData = request.getPostData();
+        HttpEntity entity = request.getEntity();
         Map<String, String> headers = request.getHeaders();
         
         // 设置超时
@@ -244,10 +239,10 @@ public class HttpConnector {
             conn.addRequestProperty("Content-Type",
                     "application/x-www-form-urlencoded");
             conn.addRequestProperty("Content-Length",
-                    String.valueOf(postData != null ? postData.length : 0));
+                    String.valueOf(entity.getContentLength()));
         }
 
-        conn.addRequestProperty("Host", getHost(url));
+        conn.addRequestProperty("Host", getHost(request.getUrl()));
         conn.setRequestMethod(method);
 
         if (params != null)
@@ -263,10 +258,10 @@ public class HttpConnector {
             }
         }
 
-        if (postData != null)
+        if (entity != null)
         {
             OutputStream outputstream = conn.getOutputStream();
-            outputstream.write(postData);
+            entity.writeTo(outputstream);
             outputstream.flush();
             outputstream.close();
         }

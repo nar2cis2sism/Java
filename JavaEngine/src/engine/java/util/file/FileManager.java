@@ -9,6 +9,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
@@ -20,20 +21,18 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * 文件管理器<br>
+ * 文件管理器<p>
  * 功能：文件操作
  * 
  * @author Daimon
  * @version N
  * @since 9/26/2012
  */
-
 public final class FileManager {
 
     /**
      * 复制文件
      */
-
     public static boolean copyFile(File desFile, File srcFile) {
         if (!srcFile.exists())
         {
@@ -55,7 +54,6 @@ public final class FileManager {
      * @param desDir 指定目录
      * @param files 欲复制的文件（夹）列表
      */
-
     public static boolean copyTo(File desDir, File... files) {
         if (files == null || files.length == 0)
         {
@@ -79,7 +77,6 @@ public final class FileManager {
      * @param desDir 指定目录
      * @param srcFile 欲复制的文件（夹）
      */
-
     public static boolean copyTo(File desDir, File srcFile) {
         if (!srcFile.exists())
         {
@@ -108,7 +105,6 @@ public final class FileManager {
     /**
      * 删除文件或目录（即使包含有文件）
      */
-
     public static void delete(File file) {
         if (!file.exists())
         {
@@ -133,7 +129,6 @@ public final class FileManager {
     /**
      * 清空目录
      */
-
     public static void clearDir(File file) {
         if (!file.exists())
         {
@@ -152,21 +147,20 @@ public final class FileManager {
     /**
      * 创建文件以便写入
      */
-
     public static void createFileIfNecessary(File file) {
         if (file.isDirectory())
         {
             throw new FileException(String.format("%s is directory.", file));
         }
 
-        File parent = file.getParentFile();
-        if (!parent.exists() && !parent.mkdirs())
-        {
-            throw new FileException(String.format("Cannot create parent dir[%s]", parent));
-        }
-
         if (!file.exists())
         {
+            File parent = file.getParentFile();
+            if (!parent.exists() && !parent.mkdirs())
+            {
+                throw new FileException(String.format("Cannot create parent dir[%s]", parent));
+            }
+            
             try {
                 file.createNewFile();
             } catch (IOException e) {
@@ -178,7 +172,6 @@ public final class FileManager {
     /**
      * 获取文件（夹）大小
      */
-
     public static long getFileSize(File file) {
         if (file.isDirectory())
         {
@@ -195,6 +188,15 @@ public final class FileManager {
             return file.length();
         }
     }
+    
+    /**
+     * 获取文件名称
+     * 
+     * @param path 文件所在路径
+     */
+    public static String getFileName(String path) {
+        return path.substring(path.lastIndexOf(File.separator) + 1, path.length());
+    }
 
     /**
      * 根据文件名搜索文件
@@ -203,7 +205,6 @@ public final class FileManager {
      * @param fileName 搜索文件名
      * @return 如没搜到则返回Null
      */
-
     public static File searchFile(File dir, String fileName) {
         if (!(dir.exists() && dir.isDirectory()))
         {
@@ -233,7 +234,6 @@ public final class FileManager {
     /**
      * 将文件内容映射到内存中（慎用）
      */
-
     public static MappedByteBuffer mapToBuffer(File file) throws Exception {
         RandomAccessFile raf = null;
         try {
@@ -242,27 +242,41 @@ public final class FileManager {
             mbb.order(ByteOrder.nativeOrder());
             return mbb;
         } finally {
-            if (raf != null)
+            if (raf != null) raf.close();
+        }
+    }
+    
+    /**
+     * 读取文件内容
+     * 
+     * @param cls 与文件平级的类
+     * @param fileName 文件名
+     */
+    public static byte[] readFile(Class<?> cls, String fileName) throws IOException {
+        InputStream is = null;
+        try {
+            is = cls.getResourceAsStream(fileName);
+            if (is == null)
             {
-                raf.close();
+                throw new IOException("No resource:" + fileName);
             }
+            
+            return IOUtil.readStream(is);
+        } finally {
+            if (is != null) is.close();
         }
     }
 
     /**
      * 读取文件内容
      */
-
     public static byte[] readFile(File file) {
         try {
             FileInputStream fis = null;
             try {
                 return IOUtil.readStream(fis = new FileInputStream(file));
             } finally {
-                if (fis != null)
-                {
-                    fis.close();
-                }
+                if (fis != null) fis.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -279,9 +293,7 @@ public final class FileManager {
      * @param append true为追加,false为覆盖
      * @return 是否成功写入
      */
-
     public static boolean writeFile(File file, byte[] content, boolean append) {
-        createFileIfNecessary(file);
         try {
             FileOutputStream fos = null;
             try {
@@ -290,10 +302,7 @@ public final class FileManager {
                 fos.write(content);
                 return true;
             } finally {
-                if (fos != null)
-                {
-                    fos.close();
-                }
+                if (fos != null) fos.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -305,7 +314,6 @@ public final class FileManager {
     /**
      * 逐行读取文件内容
      */
-
     public static String[] readLines(File file) {
         List<String> list = null;
         try {
@@ -319,10 +327,7 @@ public final class FileManager {
                     list.add(s);
                 }
             } finally {
-                if (br != null)
-                {
-                    br.close();
-                }
+                if (br != null) br.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -334,7 +339,6 @@ public final class FileManager {
     /**
      * 读取第一行文件内容
      */
-
     public static String readFirstLine(File file) {
         String s = null;
         try {
@@ -343,10 +347,7 @@ public final class FileManager {
                 br = new BufferedReader(new FileReader(file));
                 s = br.readLine();
             } finally {
-                if (br != null)
-                {
-                    br.close();
-                }
+                if (br != null) br.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -362,7 +363,6 @@ public final class FileManager {
      * @param c 数据集合
      * @return 操作是否成功
      */
-
     public static boolean importData(File input, Collection<Object> c) {
         if (c == null || input == null)
         {
@@ -384,10 +384,7 @@ public final class FileManager {
                     return true;
                 }
             } finally {
-                if (ois != null)
-                {
-                    ois.close();
-                }
+                if (ois != null) ois.close();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -403,7 +400,6 @@ public final class FileManager {
      * @param output 指定输出文件
      * @return 操作是否成功
      */
-
     public static boolean exportData(Collection<Object> c, File output) {
         if (c == null || output == null)
         {
@@ -421,10 +417,7 @@ public final class FileManager {
                         return false;
                     }
                 } finally {
-                    if (ois != null)
-                    {
-                        ois.close();
-                    }
+                    if (ois != null) ois.close();
                 }
             } catch (FileNotFoundException e) {
                 // Ignore.
@@ -448,16 +441,20 @@ public final class FileManager {
 
                 return true;
             } finally {
-                if (oos != null)
-                {
-                    oos.close();
-                }
+                if (oos != null) oos.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         return false;
+    }
+
+    /**
+     * Do not allow media scan
+     */
+    public static void disableMediaScan(File file) {
+        createFileIfNecessary(new File(file.getParentFile(), ".nomedia"));
     }
 
     private static class FileException extends RuntimeException {

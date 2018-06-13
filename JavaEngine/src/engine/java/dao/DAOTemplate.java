@@ -1,15 +1,20 @@
 package engine.java.dao;
 
-import static engine.java.common.LogFactory.LOG.log;
-import engine.java.common.LogFactory;
-import engine.java.common.LogFactory.LogUtil;
+import static engine.java.dao.DAOUtil.checkNull;
+import static engine.java.dao.DAOUtil.extractFromResultSet;
+import static engine.java.util.log.LogFactory.LOG.log;
+import static engine.java.util.log.LogFactory.LogUtil.getCallerStackFrame;
+
+import engine.java.dao.DAOUtil.DAOException;
 import engine.java.dao.annotation.DAOPrimaryKey;
 import engine.java.dao.annotation.DAOProperty;
 import engine.java.dao.annotation.DAOTable;
 import engine.java.dao.db.DataBaseConnection;
 import engine.java.dao.util.Page;
-import engine.java.util.Pair;
-import engine.java.util.string.TextUtils;
+import engine.java.util.common.Pair;
+import engine.java.util.common.TextUtils;
+import engine.java.util.log.LogFactory;
+import engine.java.util.log.LogFactory.LogUtil;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -39,6 +44,16 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DAOTemplate {
 
     /**
+     * 数据库更新监听器
+     */
+    public interface DBUpdateListener {
+
+        void onCreate(DAOTemplate dao);
+
+        void onUpdate(DAOTemplate dao, int oldVersion, int newVersion);
+    }
+
+    /**
      * 数据库事务处理
      */
     public interface DAOTransaction {
@@ -49,14 +64,12 @@ public class DAOTemplate {
         boolean execute(DAOTemplate dao) throws Exception;
     }
 
+    private final AtomicReference<Connection> conn
+    = new AtomicReference<Connection>();
+    
     private boolean printLog = true;
 
     private final DataBaseConnection db;
-    
-    private boolean inTransaction;
-
-    private final AtomicReference<Connection> conn
-    = new AtomicReference<Connection>();
 
     /**
      * 数据库表监听器
@@ -223,7 +236,7 @@ public class DAOTemplate {
     }
 
     private void dispatchChange(CopyOnWriteArraySet<DAOObserver> observers, int op) {
-        if (inTransaction)
+        if (conn.get() != null)
         {
             for (DAOObserver observer : observers)
             {
@@ -261,6 +274,56 @@ public class DAOTemplate {
     }
 
     /******************************* 华丽丽的分割线 *******************************/
+
+    private <D> D execute(String sql, Object[] bindArgs, Class<D> returnType) throws Exception {
+        if (printLog) LOG_SQL(sql, bindArgs);
+
+        Connection conn = getConnection();
+        try {
+            PreparedStatement ps = conn.prepareStatement(sql);
+            if (bindArgs != null && bindArgs.length > 0)
+            {
+                for (int i = bindArgs.length; i != 0; i--)
+                {
+                    ps.setObject(i, bindArgs[i - 1]);
+                }
+            }
+
+            Object returnObj = null;
+            if (returnType == Boolean.class)
+            {
+                returnObj = ps.execute();
+                ps.close();
+            }
+            else if (returnType == Integer.class)
+            {
+                returnObj = ps.executeUpdate();
+                ps.close();
+            }
+            else if (returnType == ResultSet.class)
+            {
+                returnObj = ps.executeQuery();
+                ps.closeOnCompletion();
+            }
+            else if (returnType == Long.class)
+            {
+                ResultSet rs = ps.executeQuery();
+                if (rs != null)
+                {
+                    if (rs.first())
+                    {
+                        returnObj = rs.getLong(1);
+                    }
+                    
+                    ps.close();
+                }
+            }
+
+            return returnType.cast(returnObj);
+        } finally {
+            conn.close();
+        }
+    }
     
     /**
      * 查询结果集
@@ -345,8 +408,8 @@ public class DAOTemplate {
         try {
             Connection conn = getConnection();
             conn.setAutoCommit(false);
-            inTransaction = true;
-            if (printLog) log(LogUtil.getCallerStackFrame(), "事务开始");
+            this.conn.set(conn);
+            if (printLog) log(LogUtil.getClassAndMethod(getCallerStackFrame()), "事务开始");
             try {
                 if (transaction.execute(this))
                 {
@@ -362,9 +425,9 @@ public class DAOTemplate {
                     conn.rollback();
                 }
                 
-                conn.setAutoCommit(true);
-                inTransaction = false;
-                if (printLog) log(LogUtil.getCallerStackFrame(), "事务结束:success=" + success);
+                conn.close();
+                this.conn.set(null);
+                if (printLog) log(LogUtil.getClassAndMethod(getCallerStackFrame()), "事务结束:success=" + success);
                 dispatchChange(success);
             }
         } catch (DAOException e) {
@@ -374,56 +437,6 @@ public class DAOTemplate {
         }
 
         return success;
-    }
-
-    private <D> D execute(String sql, Object[] bindArgs, Class<D> returnType) throws Exception {
-        if (printLog) LOG_SQL(sql, bindArgs);
-
-        Connection conn = getConnection();
-        try {
-            PreparedStatement ps = conn.prepareStatement(sql);
-            if (bindArgs != null && bindArgs.length > 0)
-            {
-                for (int i = bindArgs.length; i != 0; i--)
-                {
-                    ps.setObject(i, bindArgs[i - 1]);
-                }
-            }
-
-            Object returnObj = null;
-            if (returnType == Boolean.class)
-            {
-                returnObj = ps.execute();
-                ps.close();
-            }
-            else if (returnType == Integer.class)
-            {
-                returnObj = ps.executeUpdate();
-                ps.close();
-            }
-            else if (returnType == ResultSet.class)
-            {
-                returnObj = ps.executeQuery();
-                ps.closeOnCompletion();
-            }
-            else if (returnType == Long.class)
-            {
-                ResultSet rs = ps.executeQuery();
-                if (rs != null)
-                {
-                    if (rs.first())
-                    {
-                        returnObj = rs.getLong(1);
-                    }
-                    
-                    ps.close();
-                }
-            }
-
-            return returnType.cast(returnObj);
-        } finally {
-            conn.close();
-        }
     }
 
     /**
@@ -516,7 +529,7 @@ public class DAOTemplate {
             sql.append("    ")
             .append(primaryKey.getColumn())
             .append(" ")
-            .append(primaryKey.isAsInteger() ?
+            .append(primaryKey.asInteger() ?
                     "INTEGER" : translateType(primaryKey.getDataType()))
             .append(" PRIMARY KEY")
             .append(primaryKey.isAutoincrement() ?
@@ -571,6 +584,29 @@ public class DAOTemplate {
         .append(newName);
 
         execute(sql.toString());
+    }
+    
+    /**
+     * 更改数据库表结构(备份数据然后重建表)
+     * 
+     * @param c JavaBean类
+     */
+    public void alterTable(final Class<?> c) {
+        execute(new DAOTransaction() {
+
+            @Override
+            public boolean execute(DAOTemplate dao) throws Exception {
+                Table table = Table.getTable(c);
+                String tempTable = "tempTable";
+
+                dao.renameTable(table.getTableName(), tempTable);
+                dao.createTable(c);
+                dao.execute("INSERT INTO " + table.getTableName() +
+                        " SELECT * FROM " + tempTable);
+                dao.execute("DROP TABLE " + tempTable);
+                return true;
+            }
+        });
     }
 
     /**
@@ -673,6 +709,7 @@ public class DAOTemplate {
      * @param obj JavaBean对象，映射到数据库的一张表
      * @return 是否有数据保存
      */
+    @SuppressWarnings("unchecked")
     public <T> boolean save(T... obj) {
         checkNull(obj);
         if (obj.length == 0) return false;
@@ -777,7 +814,7 @@ public class DAOTemplate {
             {
                 return builder.where(DAOExpression
                     .create(primaryKey.getColumn())
-                    .equal(primaryKey.getValue(obj)))
+                    .eq(primaryKey.getValue(obj)))
                 .delete();
             }
         } catch (Exception e) {
@@ -806,7 +843,7 @@ public class DAOTemplate {
             {
                 return builder.where(DAOExpression
                     .create(primaryKey.getColumn())
-                    .equal(primaryKey.getValue(obj)))
+                    .eq(primaryKey.getValue(obj)))
                 .update(obj, fields);
             }
         } catch (Exception e) {
@@ -816,7 +853,7 @@ public class DAOTemplate {
         return false;
     }
 
-    <T> boolean remove(DAOSQLBuilder<T> builder) {
+    private <T> boolean remove(DAOSQLBuilder<T> builder) {
         Table table = builder.table;
 
         try {
@@ -839,7 +876,7 @@ public class DAOTemplate {
         return false;
     }
 
-    <T> boolean edit(DAOSQLBuilder<T> builder, T bean, String... fields) {
+    private <T> boolean edit(DAOSQLBuilder<T> builder, T bean, String... fields) {
         checkNull(bean);
 
         Table table = builder.table;
@@ -906,26 +943,14 @@ public class DAOTemplate {
         return new DAOQueryBuilder<T>(c);
     }
 
-    static void checkNull(Object obj) {
-        if (obj != null) return;
-        
-        String message;
-        StackTraceElement stack = LogUtil.getCallerStackFrame();
-        if (stack != null)
+    private void processException(Exception t) {
+        DAOException e = new DAOException(t);
+        if (conn.get() != null)
         {
-            message = String.format("Argument passed to %s[%d] cannot be null",
-                    stack.getMethodName(), stack.getLineNumber());
-        }
-        else
-        {
-            message = "Argument cannot be null";
+            throw e;
         }
 
-        throw new DAOException("你故意的吧！", new NullPointerException(message));
-    }
-
-    static void processException(Exception t) {
-        LOG_DAOException(new DAOException(t));
+        LOG_DAOException(e);
     }
 
     /**
@@ -935,233 +960,10 @@ public class DAOTemplate {
         try {
             return extractFromResultSet(rs, Table.getTable(c), c);
         } catch (Exception e) {
-            processException(e);
+            LOG_DAOException(new DAOException(e));
         }
 
         return null;
-    }
-
-    private static <T> T extractFromResultSet(ResultSet rs, Table table, Class<T> c)
-            throws Exception {
-        T o = c.newInstance();
-        int columnCount = rs.getMetaData().getColumnCount();
-        if (columnCount > 0)
-        {
-            for (int columnIndex = columnCount; columnIndex > 0; columnIndex--)
-            {
-                String columnName = rs.getMetaData().getColumnName(columnIndex);
-                Property property = table.getPropertyByColumn(columnName);
-                if (property != null)
-                {
-                    Object value = rs.getObject(columnIndex);
-                    if (value != null)
-                    {
-                        property.setValue(o, value);
-                    }
-                }
-            }
-        }
-
-        return o;
-    }
-
-    /******************************* 华丽丽的分割线 *******************************/
-
-    private static class Property {
-
-        private final Field field;                    // 对应JavaBean的域
-
-        private final String fieldName;               // JavaBean变量名称
-
-        private final String column;                  // 对应DataBase的列
-
-        public Property(Field field, DAOProperty property) {
-            this(field, property.column());
-        }
-
-        public Property(Field field, String column) {
-            fieldName = (this.field = field).getName();
-            this.column = TextUtils.isEmpty(column) ? fieldName : column;
-        }
-
-        public String getFieldName() {
-            return fieldName;
-        }
-
-        public String getColumn() {
-            return column;
-        }
-
-        /**
-         * 获取数据类型
-         */
-        public Class<?> getDataType() {
-            return field.getType();
-        }
-
-        public Object getValue(Object obj) throws Exception {
-            field.setAccessible(true);
-            return field.get(obj);
-        }
-
-        public void setValue(Object obj, Object value) throws Exception {
-            field.setAccessible(true);
-            field.set(obj, value);
-        }
-    }
-
-    private static class PrimaryKey extends Property {
-
-        private final boolean asInteger;
-
-        private final boolean isAutoincrement;
-
-        public PrimaryKey(Field field, DAOPrimaryKey primaryKey) {
-            super(field, primaryKey.column());
-            Class<?> dataType = getDataType();
-            asInteger = dataType == Integer.class || dataType == int.class
-                     || dataType == Long.class || dataType == long.class
-                     || dataType == Short.class || dataType == short.class
-                     || dataType == Byte.class || dataType == byte.class;
-            isAutoincrement = primaryKey.autoincrement() && asInteger;
-        }
-
-        public boolean isAutoincrement() {
-            return isAutoincrement;
-        }
-
-        public boolean isAsInteger() {
-            return asInteger;
-        }
-    }
-
-    private static class Table {
-
-        private static final ConcurrentHashMap<String, Table> tables =
-                new ConcurrentHashMap<String, Table>(); // 类名为索引
-
-        private final String tableName;
-
-        private PrimaryKey primaryKey;
-
-        private final HashMap<String, Property> propertiesByField =
-                new HashMap<String, Property>(); // 域名为索引
-
-        private final HashMap<String, Property> propertiesByColumn =
-                new HashMap<String, Property>(); // 列名为索引
-
-        public Table(Class<?> c) {
-            tableName = getTableName(c);
-
-            Field[] fields = c.getDeclaredFields();
-            for (Field field : fields)
-            {
-                // 过滤主键
-                DAOPrimaryKey primaryKey = field.getAnnotation(DAOPrimaryKey.class);
-                if (primaryKey != null && this.primaryKey == null)
-                {
-                    this.primaryKey = new PrimaryKey(field, primaryKey);
-                }
-                else
-                {
-                    DAOProperty property = field.getAnnotation(DAOProperty.class);
-                    if (property != null)
-                    {
-                        Property p = new Property(field, property);
-                        propertiesByField.put(p.getFieldName(), p);
-                        propertiesByColumn.put(p.getColumn(), p);
-                    }
-                }
-            }
-        }
-
-        private static String getTableName(Class<?> c) {
-            DAOTable table = c.getAnnotation(DAOTable.class);
-            if (table != null)
-            {
-                String name = table.name();
-                if (name != null && name.trim().length() > 0)
-                {
-                    return name;
-                }
-            }
-
-            // 当没有注解的时候默认用类的名称作为表名
-            return c.getSimpleName();
-        }
-
-        public static Table getTable(Class<?> c) {
-            String name = c.getName();
-            Table table = tables.get(name);
-            if (table == null)
-            {
-                tables.putIfAbsent(name, new Table(c));
-                table = tables.get(name);
-            }
-
-            return table;
-        }
-
-        public String getTableName() {
-            return tableName;
-        }
-
-        public PrimaryKey getPrimaryKey() {
-            return primaryKey;
-        }
-
-        public Collection<Property> getPropertiesWithoutPrimaryKey() {
-            return Collections.unmodifiableCollection(propertiesByField.values());
-        }
-
-        public Collection<Property> getPropertiesWithModifiablePrimaryKey() {
-            Collection<Property> properties = propertiesByField.values();
-            if (primaryKey != null && !primaryKey.isAutoincrement())
-            {
-                ArrayList<Property> list = new ArrayList<Property>(properties.size() + 1);
-                list.add(primaryKey);
-                list.addAll(properties);
-                
-                properties = list;
-            }
-
-            return Collections.unmodifiableCollection(properties);
-        }
-
-        public Property getPropertyByField(String fieldName) {
-            if (primaryKey != null && primaryKey.getFieldName().equals(fieldName))
-            {
-                return primaryKey;
-            }
-
-            return propertiesByField.get(fieldName);
-        }
-
-        public Property getPropertyByColumn(String column) {
-            if (primaryKey != null && primaryKey.getColumn().equals(column))
-            {
-                return primaryKey;
-            }
-
-            return propertiesByColumn.get(column);
-        }
-
-        public Property getProperty(String name) {
-            if (primaryKey != null
-            && (primaryKey.getFieldName().equals(name)
-            ||  primaryKey.getColumn().equals(name)))
-            {
-                return primaryKey;
-            }
-
-            Property property = propertiesByField.get(name);
-            if (property == null)
-            {
-                property = propertiesByColumn.get(name);
-            }
-
-            return property;
-        }
     }
 
     /******************************* 华丽丽的分割线 *******************************/
@@ -1259,7 +1061,7 @@ public class DAOTemplate {
     /**
      * 数据库操作语句，可用来指定查询列
      */
-    private static class DAOClause {
+    static class DAOClause {
 
         private final LinkedList<DAOParam> params
                 = new LinkedList<DAOParam>();
@@ -1306,7 +1108,17 @@ public class DAOTemplate {
             return clause;
         }
 
-        void appendTo(Table table, StringBuilder sql) {
+        public String[] build(Table table) {
+            String[] clause = new String[params.size()];
+            for (int i = 0, len = clause.length; i < len; i++)
+            {
+                clause[i] = params.get(i).getParam(table);
+            }
+
+            return clause;
+        }
+
+        public void appendTo(Table table, StringBuilder sql) {
             boolean firstTime = true;
             for (DAOParam param : params)
             {
@@ -1329,9 +1141,9 @@ public class DAOTemplate {
      */
     public static class DAOExpression {
 
-        PropertyCondition condition;
+        protected PropertyCondition condition;
 
-        boolean isCombineExpression;
+        protected boolean isCombineExpression;
 
         private DAOExpression() {}
 
@@ -1362,11 +1174,11 @@ public class DAOTemplate {
             return expression.condition = new PropertyCondition(join(expression, " OR "), param);
         }
 
-        DAOExpression join(DAOExpression expression, String op) {
+        protected DAOExpression join(DAOExpression expression, String op) {
             return new DAOCombineExpression(this).join(expression, op);
         }
 
-        void appendTo(Table table, StringBuilder sql, List<Object> whereArgs) {
+        protected void appendTo(Table table, StringBuilder sql, List<Object> whereArgs) {
             condition.appendTo(table, sql, whereArgs);
         }
 
@@ -1378,17 +1190,17 @@ public class DAOTemplate {
             private final LinkedList<Pair<DAOExpression, String>> children;
 
             public DAOCombineExpression(DAOExpression expression) {
+                condition = expression.condition;
                 isCombineExpression = true;
                 children = new LinkedList<Pair<DAOExpression, String>>();
-                condition = expression.condition;
             }
 
-            DAOExpression join(DAOExpression expression, String op) {
+            protected DAOExpression join(DAOExpression expression, String op) {
                 children.add(new Pair<DAOExpression, String>(expression, op));
                 return this;
             }
 
-            void appendTo(Table table, StringBuilder sql, List<Object> whereArgs) {
+            protected void appendTo(Table table, StringBuilder sql, List<Object> whereArgs) {
                 super.appendTo(table, sql, whereArgs);
 
                 for (Pair<DAOExpression, String> child : children)
@@ -1410,7 +1222,7 @@ public class DAOTemplate {
 
             DAOCondition not();
 
-            DAOExpression equal(Object value);
+            DAOExpression eq(Object value);
 
             DAOExpression like(String value);
 
@@ -1455,7 +1267,7 @@ public class DAOTemplate {
             }
 
             @Override
-            public DAOExpression equal(Object value) {
+            public DAOExpression eq(Object value) {
                 return setup(notIsCalled ? "<>?" : "=?", value);
             }
 
@@ -1495,7 +1307,7 @@ public class DAOTemplate {
                 return setup(notIsCalled ? " IS NOT NULL" : " IS NULL");
             }
 
-            void appendTo(Table table, StringBuilder sql, List<Object> whereArgs) {
+            public void appendTo(Table table, StringBuilder sql, List<Object> whereArgs) {
                 sql.append(param.getParam(table)).append(op);
                 if (values != null)
                 {
@@ -1508,18 +1320,20 @@ public class DAOTemplate {
         }
     }
 
+    /******************************* 华丽丽的分割线 *******************************/
+
     /**
      * This is a convenient utility that helps build SQL语句
      */
-    private static class DAOSQLBuilder<T> {
+    static class DAOSQLBuilder<T> {
 
-        final Class<T> c;
+        public final Class<T> c;
 
-        final Table table;
+        public final Table table;
 
-        DAOExpression where;
+        public DAOExpression where;
 
-        DAOSQLBuilder(Class<T> c) {
+        public DAOSQLBuilder(Class<T> c) {
             table = Table.getTable(this.c = c);
         }
 
@@ -1528,11 +1342,11 @@ public class DAOTemplate {
             return this;
         }
 
-        void appendWhere(StringBuilder sql, List<Object> args) {
+        public void appendWhere(StringBuilder sql, List<Object> args) {
             if (where != null) where.appendTo(table, sql.append(" WHERE "), args);
         }
         
-        static String[] convertArgs(List<Object> args) {
+        public static String[] convertArgs(List<Object> args) {
             String[] strs = new String[args.size()];
             ListIterator<Object> iter = args.listIterator();
             int index = 0;
@@ -1777,7 +1591,7 @@ public class DAOTemplate {
         }
         
         /**
-         * 获取满足条件的数据集合
+         * 获取满足条件的数据列表
          */
         public List<T> getAll() {
             build(0);
@@ -1834,8 +1648,8 @@ public class DAOTemplate {
         LogFactory.addLogFile(DAOTemplate.class, "dao.txt");
     }
 
-    private static void LOG_DAOException(DAOException e) {
-        log("数据库操作异常", e);
+    private static void LOG_SQL(String sql) {
+        log("执行SQL语句", sql);
     }
 
     private static void LOG_SQL(String sql, Object[] bindArgs) {
@@ -1857,20 +1671,276 @@ public class DAOTemplate {
         LOG_SQL(sql);
     }
 
-    private static void LOG_SQL(String sql) {
-        log("执行SQL语句", sql);
+    private static void LOG_DAOException(DAOException e) {
+        log("数据库操作异常", e);
+    }
+}
+
+class Property {
+
+    private final Field field;                    // 对应JavaBean的域
+
+    private final String fieldName;               // JavaBean变量名称
+
+    private final String column;                  // 对应DataBase的列
+
+    public Property(Field field, DAOProperty property) {
+        this(field, property.column());
     }
 
-    private static class DAOException extends RuntimeException {
+    public Property(Field field, String column) {
+        fieldName = (this.field = field).getName();
+        this.column = TextUtils.isEmpty(column) ? fieldName : column;
+    }
+
+    public String getFieldName() {
+        return fieldName;
+    }
+
+    public String getColumn() {
+        return column;
+    }
+
+    /**
+     * 获取数据类型
+     */
+    public Class<?> getDataType() {
+        return field.getType();
+    }
+
+    public Object getValue(Object obj) throws Exception {
+        if (!field.isAccessible()) field.setAccessible(true);
+        return field.get(obj);
+    }
+
+    public void setValue(Object obj, Object value) throws Exception {
+        if (!field.isAccessible()) field.setAccessible(true);
+        field.set(obj, value);
+    }
+}
+
+class PrimaryKey extends Property {
+
+    private final boolean asInteger;
+
+    private final boolean isAutoincrement;
+
+    public PrimaryKey(Field field, DAOPrimaryKey primaryKey) {
+        super(field, primaryKey.column());
+        Class<?> dataType = getDataType();
+        asInteger = dataType == Integer.class || dataType == int.class
+                 || dataType == Long.class || dataType == long.class
+                 || dataType == Short.class || dataType == short.class
+                 || dataType == Byte.class || dataType == byte.class;
+        isAutoincrement = primaryKey.autoincrement() && asInteger;
+    }
+
+    public boolean isAutoincrement() {
+        return isAutoincrement;
+    }
+
+    public boolean asInteger() {
+        return asInteger;
+    }
+}
+
+class Table {
+
+    private static final ConcurrentHashMap<String, Table> tables =
+            new ConcurrentHashMap<String, Table>(); // 类名为索引
+
+    private final String tableName;
+
+    private PrimaryKey primaryKey;
+
+    private final HashMap<String, Property> propertiesByField =
+            new HashMap<String, Property>(); // 域名为索引
+
+    private final HashMap<String, Property> propertiesByColumn =
+            new HashMap<String, Property>(); // 列名为索引
+
+    public Table(Class<?> c) {
+        tableName = getTableName(c);
+
+        Field[] fields = c.getDeclaredFields();
+        for (Field field : fields)
+        {
+            // 过滤主键
+            DAOPrimaryKey primaryKey = field.getAnnotation(DAOPrimaryKey.class);
+            if (primaryKey != null && this.primaryKey == null)
+            {
+                this.primaryKey = new PrimaryKey(field, primaryKey);
+            }
+            else
+            {
+                DAOProperty property = field.getAnnotation(DAOProperty.class);
+                if (property != null)
+                {
+                    Property p = new Property(field, property);
+                    propertiesByField.put(p.getFieldName(), p);
+                    propertiesByColumn.put(p.getColumn(), p);
+                }
+            }
+        }
+    }
+
+    private static String getTableName(Class<?> c) {
+        DAOTable table = c.getAnnotation(DAOTable.class);
+        if (table != null)
+        {
+            String name = table.name();
+            if (name != null && name.trim().length() > 0)
+            {
+                return name;
+            }
+        }
+
+        // 当没有注解的时候默认用类的名称作为表名
+        return c.getSimpleName();
+    }
+
+    public static Table getTable(Class<?> c) {
+        String name = c.getName();
+        Table table = tables.get(name);
+        if (table == null)
+        {
+            tables.putIfAbsent(name, new Table(c));
+            table = tables.get(name);
+        }
+
+        return table;
+    }
+
+    public String getTableName() {
+        return tableName;
+    }
+
+    public PrimaryKey getPrimaryKey() {
+        return primaryKey;
+    }
+
+    public Collection<Property> getPropertiesWithoutPrimaryKey() {
+        return Collections.unmodifiableCollection(propertiesByField.values());
+    }
+
+    public Collection<Property> getPropertiesWithPrimaryKey() {
+        Collection<Property> properties = propertiesByField.values();
+        if (primaryKey != null)
+        {
+            ArrayList<Property> list = new ArrayList<Property>(properties.size() + 1);
+            list.add(primaryKey);
+            list.addAll(properties);
+            
+            properties = list;
+        }
+
+        return Collections.unmodifiableCollection(properties);
+    }
+
+    public Collection<Property> getPropertiesWithModifiablePrimaryKey() {
+        Collection<Property> properties = propertiesByField.values();
+        if (primaryKey != null && !primaryKey.isAutoincrement())
+        {
+            ArrayList<Property> list = new ArrayList<Property>(properties.size() + 1);
+            list.add(primaryKey);
+            list.addAll(properties);
+            
+            properties = list;
+        }
+
+        return Collections.unmodifiableCollection(properties);
+    }
+
+    public Property getPropertyByField(String fieldName) {
+        if (primaryKey != null && primaryKey.getFieldName().equals(fieldName))
+        {
+            return primaryKey;
+        }
+
+        return propertiesByField.get(fieldName);
+    }
+
+    public Property getPropertyByColumn(String column) {
+        if (primaryKey != null && primaryKey.getColumn().equals(column))
+        {
+            return primaryKey;
+        }
+
+        return propertiesByColumn.get(column);
+    }
+
+    public Property getProperty(String name) {
+        if (primaryKey != null
+        && (primaryKey.getFieldName().equals(name)
+        ||  primaryKey.getColumn().equals(name)))
+        {
+            return primaryKey;
+        }
+
+        Property property = propertiesByField.get(name);
+        if (property == null)
+        {
+            property = propertiesByColumn.get(name);
+        }
+
+        return property;
+    }
+}
+
+class DAOUtil {
+
+    public static void checkNull(Object obj) {
+        if (obj != null) return;
+        
+        String message;
+        StackTraceElement stack = getCallerStackFrame();
+        if (stack != null)
+        {
+            message = String.format("Argument passed to %s[%d] cannot be null",
+                    stack.getMethodName(), stack.getLineNumber());
+        }
+        else
+        {
+            message = "Argument cannot be null";
+        }
+    
+        throw new DAOException("你故意的吧！", new NullPointerException(message));
+    }
+
+    public static <T> T extractFromResultSet(ResultSet rs, Table table, Class<T> c)
+            throws Exception {
+        T o = c.newInstance();
+        int columnCount = rs.getMetaData().getColumnCount();
+        if (columnCount > 0)
+        {
+            for (int columnIndex = columnCount; columnIndex > 0; columnIndex--)
+            {
+                String columnName = rs.getMetaData().getColumnName(columnIndex);
+                Property property = table.getPropertyByColumn(columnName);
+                if (property != null)
+                {
+                    Object value = rs.getObject(columnIndex);
+                    if (value != null)
+                    {
+                        property.setValue(o, value);
+                    }
+                }
+            }
+        }
+
+        return o;
+    }
+
+    public static class DAOException extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 
-        public DAOException(String detailMessage, Throwable throwable) {
-            super(detailMessage, throwable);
-        }
-
         public DAOException(Throwable throwable) {
             super(throwable);
+        }
+
+        public DAOException(String detailMessage, Throwable throwable) {
+            super(detailMessage, throwable);
         }
     }
 }

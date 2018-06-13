@@ -1,7 +1,6 @@
-package engine.java.common;
+package engine.java.util.common;
 
-import engine.java.common.LogFactory.LOG;
-
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -59,7 +58,6 @@ import java.util.regex.Pattern;
  * @version N
  * @since 6/6/2014
  */
-
 public final class CalendarFormat {
 
     private static final char PATTERN_INVALID = '\0';
@@ -69,7 +67,6 @@ public final class CalendarFormat {
      * 支持：GyMdkHmsSEDFwWahKzZLc<br>
      * E.G. yyyy-MM-dd HH:mm:ss.SSS EEEE
      */
-
     public static final String PATTREN_NORMAL = "yyyy-MM-dd HH:mm:ss";
 
     /**
@@ -83,23 +80,32 @@ public final class CalendarFormat {
      * %ca          下午
      * %cE          星期六
      */
-
     public static final String PATTERN_CUSTOM   = "%c";
 
-    public static final String CHINESE_DATE     = "%cF"; // 二零零八年十一月二十六日
+    /**
+     * 二零零八年十一月二十六日
+     */
+    public static final String CHINESE_DATE     = "%cF";
 
-    public static final String CHINESE_TIME     = "%cr"; // 下午三时零六分五十二秒
+    /**
+     * 下午三时零六分五十二秒
+     */
+    public static final String CHINESE_TIME     = "%cr";
 
-    /******************************* 时区 *******************************/
-
-    public static final TimeZone CHINA = TimeZone.getTimeZone("GMT+8:00");           // 中国时区
-    public static final TimeZone CHONGQING = TimeZone.getTimeZone("Asia/Chongqing"); // 重庆
+    /**
+     * 中国时区
+     */
+    public static final TimeZone CHINA = TimeZone.getTimeZone("GMT+8:00");
+    
+    /**
+     * 重庆时区
+     */
+    public static final TimeZone CHONGQING = TimeZone.getTimeZone("Asia/Chongqing");
 
     /**
      * 日期时间格式化对象<br>
      * Daimon:ThreadLocal
      */
-
     private static final ThreadLocal<SimpleDateFormat> dateTimeFormat
     = new ThreadLocal<SimpleDateFormat>() {
         
@@ -112,7 +118,6 @@ public final class CalendarFormat {
     /**
      * 设置时区
      */
-
     public static void setTimeZone(TimeZone timezone) {
         dateTimeFormat.get().setTimeZone(timezone);
     }
@@ -132,7 +137,6 @@ public final class CalendarFormat {
     /**
      * 格式化日期
      */
-
     public static String format(Calendar date) {
         return dateTimeFormat.get().format(date.getTime());
     }
@@ -142,7 +146,6 @@ public final class CalendarFormat {
      * 
      * @param pattern 日期样式
      */
-
     public static String format(Calendar date, String pattern) {
         int index = pattern.indexOf(PATTERN_CUSTOM);
         if (index >= 0)
@@ -261,21 +264,6 @@ public final class CalendarFormat {
     }
 
     private static String format(Date date, String pattern) {
-        StringBuilder sb = new StringBuilder(pattern + PATTERN_INVALID);
-        int index = 0;
-        while ((index = sb.indexOf("%", index)) >= 0)
-        {
-            if (sb.charAt(index + 1) != 't')
-            {
-                sb.deleteCharAt(index);
-            }
-            else
-            {
-                index++;
-            }
-        }
-
-        pattern = sb.toString().trim();
         if (pattern.contains("%t"))
         {
             int size = 0;
@@ -316,44 +304,25 @@ public final class CalendarFormat {
         return cal;
     }
 
-    public static Calendar parse(String src) {
-        try {
-            return getCalendar(dateTimeFormat.get().parse(src));
-        } catch (Exception e) {
-            LOG.log(e);
-        }
-
-        return null;
-    }
-
     /**
-     * 将字符串转化为日期型数据<br>
+     * 将字符串转化为日期型数据
      * 
      * @param pattern 必须是标准格式化样式
+     * @see CalendarFormat#PATTREN_NORMAL
      */
-
-    public static Calendar parse(String src, String pattern) {
-        pattern = pattern.replaceAll("%[tc][A-Za-z]", "");
-
-        Calendar cal = null;
-
+    public static Calendar parse(String src, String pattern) throws ParseException {
         SimpleDateFormat format = dateTimeFormat.get();
         format.applyPattern(pattern);
         try {
-            cal = getCalendar(format.parse(src));
-        } catch (Exception e) {
-            LOG.log(e);
+            return getCalendar(format.parse(src));
         } finally {
             format.applyPattern(PATTREN_NORMAL);
         }
-
-        return cal;
     }
 
     /**
      * 获取日期所属的星座
      */
-
     public static String getStar(Calendar date) {
         return getStar(new int[] {
                 date.get(Calendar.MONTH) + 1,
@@ -446,7 +415,6 @@ public final class CalendarFormat {
      * @param number 如2008
      * @param literal true译为二零零八,false译为二千零八
      */
-
     public static String translate(int number, boolean literal) {
         return translate(String.valueOf(number), literal);
     }
@@ -502,7 +470,6 @@ public final class CalendarFormat {
      * @param position 从右至左的位数
      * @return 个十百千万亿
      */
-
     private static String translate(int position) {
         switch (position % 4) {
             case 0:
@@ -563,18 +530,16 @@ public final class CalendarFormat {
     }
 
     /**
-     * e.g. 中国标准时间
+     * @return e.g. 中国标准时间
      */
-
     public static String getTimeZoneName(Calendar date) {
         TimeZone tz = TimeZone.getDefault();
         return tz.getDisplayName(tz.inDaylightTime(date.getTime()), TimeZone.LONG);
     }
 
     /**
-     * e.g. GMT+08:00
+     * @return e.g. GMT+08:00
      */
-
     public static String getTimeZoneText(Calendar date) {
         TimeZone tz = TimeZone.getDefault();
         int offset = tz.getRawOffset();
@@ -618,13 +583,15 @@ public final class CalendarFormat {
      * 
      * @param precision {@link Calendar#HOUR_OF_DAY}
      */
-
     public static void formatPrecision(Calendar date, int precision) {
         while (precision < Calendar.MILLISECOND) {
             date.set(++precision, 0);
         }
     }
 
+    /**
+     * 精确到天
+     */
     public static void formatAllDay(Calendar date) {
         formatPrecision(date, Calendar.DAY_OF_WEEK_IN_MONTH);
     }

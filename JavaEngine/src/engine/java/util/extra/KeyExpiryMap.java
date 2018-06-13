@@ -1,7 +1,14 @@
-package engine.java.util;
+package engine.java.util.extra;
 
 import java.util.HashMap;
 
+/**
+ * 功能：缓存数据一定时间后过期
+ * 
+ * @author Daimon
+ * @version N
+ * @since 6/6/2014
+ */
 public class KeyExpiryMap<K, V> {
 
     private final HashMap<K, Entry<V>> values;
@@ -64,9 +71,9 @@ public class KeyExpiryMap<K, V> {
     
     private static class Entry<V> {
         
-        public V value;
-        public long putTimeStamp;
-        public long expireTimeStamp;
+        public final V value;
+        public final long putTimeStamp;
+        public final long expireTimeStamp;
         
         public Entry(V value, long putTimeStamp, long expireTimeStamp) {
             this.value = value;

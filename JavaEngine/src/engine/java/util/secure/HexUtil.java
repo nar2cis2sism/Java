@@ -7,7 +7,6 @@ package engine.java.util.secure;
  * @version N
  * @since 4/1/2012
  */
-
 public final class HexUtil {
 
     private static final char[] HEX_VALUE = {

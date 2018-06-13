@@ -7,7 +7,6 @@ package engine.java.util.extra;
  * @version N
  * @since 10/17/2012
  */
-
 public abstract class Singleton<T> {
 
     private volatile T mInstance;
@@ -15,15 +14,13 @@ public abstract class Singleton<T> {
     protected abstract T create();
 
     public final T get() {
-        if (mInstance != null)
+        if (mInstance == null)
         {
-            return mInstance;
-        }
-
-        synchronized (this) {
-            if (mInstance == null)
-            {
-                mInstance = create();
+            synchronized (this) {
+                if (mInstance == null)
+                {
+                    mInstance = create();
+                }
             }
         }
 

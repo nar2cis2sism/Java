@@ -9,7 +9,6 @@ import java.util.Random;
  * @version N
  * @since 3/21/2012
  */
-
 public final class Obfuscate {
 
     public static byte[] obfuscate(byte[] data) {
@@ -55,10 +54,9 @@ public final class Obfuscate {
 
     private static void XOR(byte[] src, int srcPos, byte[] dest, int destPos, 
             int length, byte[] key) {
-        int len = key.length;
         for (int i = 0; i < length; i++)
         {
-            dest[i + destPos] = (byte) (src[i + srcPos] ^ key[i % len]);
+            dest[i + destPos] = (byte) (src[i + srcPos] ^ key[i % key.length]);
         }
     }
 }

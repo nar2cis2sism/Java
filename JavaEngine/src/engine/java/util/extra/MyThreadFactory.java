@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @version N
  * @since 6/6/2014
  */
-
 public class MyThreadFactory implements ThreadFactory {
 
     private final String namePrefix;
