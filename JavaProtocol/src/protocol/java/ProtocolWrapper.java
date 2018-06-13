@@ -1,5 +1,8 @@
 package protocol.java;
 
+import static protocol.java.ProtocolUtil.bytesToInt;
+import static protocol.java.ProtocolUtil.intToBytes;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -30,60 +33,6 @@ public final class ProtocolWrapper {
     
     public static void setEncryptSecret(byte[] key) {
         protocolEncryptKey = key;
-    }
-
-    private static byte[] encrypt(byte[] key, byte[] data) throws Exception {
-        return getAESCipher(key, Cipher.ENCRYPT_MODE).doFinal(data);
-    }
-
-    private static byte[] decrypt(byte[] key, byte[] data) throws Exception {
-        return getAESCipher(key, Cipher.DECRYPT_MODE).doFinal(data);
-    }
-    
-    private static Cipher getAESCipher(byte[] key, int mode) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        cipher.init(mode, new SecretKeySpec(key, "AES"));
-        return cipher;
-    }
-
-    private static byte[] gzip(byte[] content) throws IOException {
-        GZIPOutputStream zos = null;
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            zos = new GZIPOutputStream(baos);
-            zos.write(content);
-            zos.finish();
-            return baos.toByteArray();
-        } finally {
-            if (zos != null)
-            {
-                zos.close();
-            }
-        }
-    }
-
-    private static byte[] ungzip(byte[] content) throws IOException {
-        GZIPInputStream zis = null;
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            zis = new GZIPInputStream(new ByteArrayInputStream(content));
-            writeStream(zis, baos);
-            return baos.toByteArray();
-        } finally {
-            if (zis != null)
-            {
-                zis.close();
-            }
-        }
-    }
-
-    private static void writeStream(InputStream is, OutputStream os) throws IOException {
-        byte[] buffer = new byte[1024];
-        int n = 0;
-        while ((n = is.read(buffer)) > 0)
-        {
-            os.write(buffer, 0, n);
-        }
     }
     
     public static byte[] wrap(ProtocolEntity entity) throws IOException {
@@ -147,8 +96,7 @@ public final class ProtocolWrapper {
         return entity;
     }
 
-    private static boolean readStream(InputStream is, byte[] buffer)
-            throws IOException {
+    private static boolean readStream(InputStream is, byte[] buffer) throws IOException {
         int length = buffer.length;
         int index = 0;
         int len = 0;
@@ -160,34 +108,67 @@ public final class ProtocolWrapper {
         
         return len != -1;
     }
-
-    private static void intToBytes(int i, byte[] bs, int offset) {
-        bs[offset]     = (byte) (i >> 24);
-        bs[offset + 1] = (byte) (i >> 16);
-        bs[offset + 2] = (byte) (i >> 8);
-        bs[offset + 3] = (byte) i;
-    }
-
-    private static int bytesToInt(byte[] bs, int offset) {
-        return (bs[offset + 3] & 0xff)
-            | ((bs[offset + 2] & 0xff) << 8)
-            | ((bs[offset + 1] & 0xff) << 16)
-            | ((bs[offset]     & 0xff) << 24);
-    }
     
     /**
      * 信令实体类
      */
     public static final class ProtocolEntity {
+        
+        /**
+         * 数据流传输扩展，使用{@link #writeString(String)}代替{@link #writeUTF(String)}
+         */
+        public static final class ProtocolDataOutputStream extends DataOutputStream {
+
+            public ProtocolDataOutputStream(OutputStream out) {
+                super(out);
+            }
+            
+            /**
+             * Writes a string to the underlying output stream, consider it is null value.
+             */
+            public void writeString(String str) throws IOException {
+                if (str == null)
+                {
+                    writeBoolean(false);
+                }
+                else
+                {
+                    writeBoolean(true);
+                    writeUTF(str);
+                }
+            }
+        }
+
+        /**
+         * 数据流传输扩展，使用{@link #readString()}代替{@link #readUTF()}
+         */
+        public static final class ProtocolDataInputStream extends DataInputStream {
+
+            public ProtocolDataInputStream(InputStream in) {
+                super(in);
+            }
+            
+            /**
+             * Reads a string from the contained input stream, may be null value.
+             */
+            public String readString() throws IOException {
+                if (readBoolean())
+                {
+                    return readUTF();
+                }
+                
+                return null;
+            }
+        }
 
         /**
          * 用于协议传输的数据接口
          */
         public interface ProtocolData {
 
-            void write(DataOutputStream dos) throws IOException;
+            void write(ProtocolDataOutputStream dos) throws IOException;
 
-            void read(DataInputStream dis) throws IOException;
+            void read(ProtocolDataInputStream dis) throws IOException;
         }
         
         // 信令包大小（包含信令头）
@@ -239,16 +220,16 @@ public final class ProtocolWrapper {
         
         public void generateBody() throws Exception {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            DataOutputStream dos = new DataOutputStream(baos);
+            ProtocolDataOutputStream dos = new ProtocolDataOutputStream(baos);
             try {
                 dos.writeUTF(data.getClass().getName());
                 data.write(dos);
                 
                 byte[] body = baos.toByteArray();
-                if (body.length > 512)
+                if (body.length > ProtocolUtil.DEFAULT_COMPRESS_SIZE)
                 {
                     // 压缩
-                    body = gzip(body);
+                    body = ProtocolUtil.gzip(body);
                     flag |= 0x01;
                 }
 
@@ -256,7 +237,7 @@ public final class ProtocolWrapper {
                 {
                     // 加密
                     try {
-                        body = encrypt(protocolEncryptKey, body);
+                        body = ProtocolUtil.encrypt(protocolEncryptKey, body);
                         flag |= 0x02;
                     } catch (Exception e) {
                         // Keep origin data.
@@ -275,22 +256,20 @@ public final class ProtocolWrapper {
             if ((flag & 0x02) != 0)
             {
                 // 解密
-                body = decrypt(protocolEncryptKey, body);
+                body = ProtocolUtil.decrypt(protocolEncryptKey, body);
             }
             
             if ((flag & 0x01) != 0)
             {
                 // 解压缩
-                body = ungzip(body);
+                body = ProtocolUtil.ungzip(body);
             }
             
-            DataInputStream dis = new DataInputStream(
-                    new ByteArrayInputStream(body));
+            ProtocolDataInputStream dis = new ProtocolDataInputStream(new ByteArrayInputStream(body));
             try {
                 Class<? extends ProtocolData> cls = Class.forName(dis.readUTF())
                         .asSubclass(ProtocolData.class);
-                data = cls.newInstance();
-                data.read(dis);
+                (data = cls.newInstance()).read(dis);
             } finally {
                 dis.close();
             }
@@ -311,5 +290,81 @@ public final class ProtocolWrapper {
             
             return sb.toString();
         }
+    }
+}
+
+final class ProtocolUtil {
+
+    public static final int DEFAULT_COMPRESS_SIZE = 512;
+
+    /**
+     * 压缩数据
+     */
+    public static byte[] gzip(byte[] content) throws IOException {
+        GZIPOutputStream zos = null;
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            zos = new GZIPOutputStream(baos);
+            zos.write(content);
+            zos.finish();
+            return baos.toByteArray();
+        } finally {
+            if (zos != null)
+            {
+                zos.close();
+            }
+        }
+    }
+
+    /**
+     * 解压缩数据
+     */
+    public static byte[] ungzip(byte[] content) throws IOException {
+        GZIPInputStream zis = null;
+        try {
+            zis = new GZIPInputStream(new ByteArrayInputStream(content));
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[DEFAULT_COMPRESS_SIZE * 2];
+            int n;
+            while ((n = zis.read(buffer)) > 0)
+            {
+                baos.write(buffer, 0, n);
+            }
+            
+            return baos.toByteArray();
+        } finally {
+            if (zis != null)
+            {
+                zis.close();
+            }
+        }
+    }
+
+    public static byte[] encrypt(byte[] key, byte[] data) throws Exception {
+        return crypto(key, data, Cipher.ENCRYPT_MODE);
+    }
+
+    public static byte[] decrypt(byte[] key, byte[] data) throws Exception {
+        return crypto(key, data, Cipher.DECRYPT_MODE);
+    }
+    
+    private static byte[] crypto(byte[] key, byte[] data, int cipherMode) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(cipherMode, new SecretKeySpec(key, "AES"));
+        return cipher.doFinal(data);
+    }
+
+    public static void intToBytes(int i, byte[] bs, int offset) {
+        bs[offset] = (byte) (i >> 24);
+        bs[offset + 1] = (byte) (i >> 16);
+        bs[offset + 2] = (byte) (i >> 8);
+        bs[offset + 3] = (byte) i;
+    }
+
+    public static int bytesToInt(byte[] bs, int offset) {
+        return (bs[offset + 3] & 0xff)
+            | ((bs[offset + 2] & 0xff) << 8)
+            | ((bs[offset + 1] & 0xff) << 16)
+            | ((bs[offset] & 0xff) << 24);
     }
 }

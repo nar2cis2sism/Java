@@ -1061,7 +1061,7 @@ public class DAOTemplate {
     /**
      * 数据库操作语句，可用来指定查询列
      */
-    static class DAOClause {
+    private static class DAOClause {
 
         private final LinkedList<DAOParam> params
                 = new LinkedList<DAOParam>();
@@ -1103,16 +1103,6 @@ public class DAOTemplate {
                     throw new DAOException("parameters only allow String or DAOParam",
                             new IllegalArgumentException());
                 }
-            }
-
-            return clause;
-        }
-
-        public String[] build(Table table) {
-            String[] clause = new String[params.size()];
-            for (int i = 0, len = clause.length; i < len; i++)
-            {
-                clause[i] = params.get(i).getParam(table);
             }
 
             return clause;
@@ -1325,13 +1315,13 @@ public class DAOTemplate {
     /**
      * This is a convenient utility that helps build SQL语句
      */
-    static class DAOSQLBuilder<T> {
+    private static class DAOSQLBuilder<T> {
 
-        public final Class<T> c;
+        final Class<T> c;
 
-        public final Table table;
+        final Table table;
 
-        public DAOExpression where;
+        private DAOExpression where;
 
         public DAOSQLBuilder(Class<T> c) {
             table = Table.getTable(this.c = c);
@@ -1342,20 +1332,8 @@ public class DAOTemplate {
             return this;
         }
 
-        public void appendWhere(StringBuilder sql, List<Object> args) {
+        void appendWhere(StringBuilder sql, List<Object> args) {
             if (where != null) where.appendTo(table, sql.append(" WHERE "), args);
-        }
-        
-        public static String[] convertArgs(List<Object> args) {
-            String[] strs = new String[args.size()];
-            ListIterator<Object> iter = args.listIterator();
-            int index = 0;
-            while (iter.hasNext())
-            {
-                strs[index++] = String.valueOf(iter.next());
-            }
-            
-            return strs;
         }
     }
 
@@ -1436,7 +1414,7 @@ public class DAOTemplate {
             return this;
         }
 
-        public DAOSQLBuilder<T> having(DAOExpression expression) {
+        public DAOQueryBuilder<T> having(DAOExpression expression) {
             having = expression;
             return this;
         }
@@ -1546,6 +1524,18 @@ public class DAOTemplate {
             if (args.isEmpty()) return null;
             String[] strs = convertArgs(args);
             args.clear();
+            return strs;
+        }
+        
+        private String[] convertArgs(List<Object> args) {
+            String[] strs = new String[args.size()];
+            ListIterator<Object> iter = args.listIterator();
+            int index = 0;
+            while (iter.hasNext())
+            {
+                strs[index++] = String.valueOf(iter.next());
+            }
+            
             return strs;
         }
 
