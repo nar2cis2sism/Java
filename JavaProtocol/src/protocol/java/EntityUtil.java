@@ -24,7 +24,7 @@ public final class EntityUtil {
     }
     
     public static byte[] toByteArray(String entity) {
-        if (entity == null) return new byte[0];
+        if (entity == null || entity.length() == 0) return new byte[0];
         
         byte[] data = entity.getBytes(UTF_8);
         if (encryptor != null) data = encryptor.encrypt(data);
@@ -32,7 +32,7 @@ public final class EntityUtil {
     }
     
     public static String toString(byte[] data) {
-        if (data == null) return "";
+        if (data == null || data.length == 0) return "";
         if (encryptor != null) data = encryptor.decrypt(data);
         return new String(data, UTF_8);
     }
