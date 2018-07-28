@@ -17,11 +17,12 @@ public class UserInfo {
 
     public long birthday;                   // 出生日期
 
-    public String city;                     // 常驻城市
+    /**
+     * 此字段包含“区域编码(String)”与“地区名称(String)”，用“:”分隔
+     */
+    public String region;                   // 所在地区
     
     public String signature;                // 签名
-
-    public String profile;                  // 个人简介
 
     /**
      * 0：未认证
