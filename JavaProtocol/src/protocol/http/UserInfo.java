@@ -1,4 +1,4 @@
-package protocol.java.json;
+package protocol.http;
 
 /**
  * 用户资料

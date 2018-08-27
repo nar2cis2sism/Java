@@ -1,7 +1,7 @@
-package protocol.java;
+package protocol.util;
 
-import static protocol.java.ProtocolUtil.bytesToInt;
-import static protocol.java.ProtocolUtil.intToBytes;
+import static protocol.util.ProtocolUtil.bytesToInt;
+import static protocol.util.ProtocolUtil.intToBytes;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -185,9 +185,9 @@ public final class ProtocolWrapper {
         
         // 数据体
         byte[] body;
-        private ProtocolData data;
+        ProtocolData data;
         
-        private ProtocolEntity() {}
+        ProtocolEntity() {}
         
         public static ProtocolEntity newInstance(int msgId, ProtocolData data) {
             return newInstance(msgId, data.getClass().getName().hashCode(), data);

@@ -1,4 +1,4 @@
-package protocol.java;
+package protocol.util;
 
 import java.nio.charset.Charset;
 

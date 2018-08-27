@@ -1,7 +1,7 @@
-package protocol.java.json;
+package protocol.http;
 
 /**
- * 好友同步
+ * 好友同步信息
  */
 public class FriendSync {
     

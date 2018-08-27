@@ -1,4 +1,4 @@
-package protocol.java.json;
+package protocol.http;
 
 import java.util.HashMap;
 

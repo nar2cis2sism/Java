@@ -1,16 +1,16 @@
-package protocol.java.stream;
+package protocol.socket.ack;
 
-import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
-import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolDataInputStream;
-import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolDataOutputStream;
-import protocol.java.stream.req.Message;
+import protocol.socket.req.Message;
+import protocol.util.ProtocolWrapper.ProtocolEntity.ProtocolData;
+import protocol.util.ProtocolWrapper.ProtocolEntity.ProtocolDataInputStream;
+import protocol.util.ProtocolWrapper.ProtocolEntity.ProtocolDataOutputStream;
 
 import java.io.IOException;
 
 /**
- * 离线消息推送
+ * 离线消息应答
  */
-public class OfflineMessage implements ProtocolData {
+public class OfflineMessageACK implements ProtocolData {
     
     public Message[] message;
 

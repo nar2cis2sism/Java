@@ -35,9 +35,14 @@ public final class StringUtil {
     private static final Charset CHARSET_UTF_8 = Charset.forName(UTF_8);
     
     public static byte[] toByteArray(String str) {
-        if (str == null) return new byte[0];
+        if (str == null || str.length() == 0) return new byte[0];
         
         return str.getBytes(CHARSET_UTF_8);
+    }
+    
+    public static String toString(byte[] bs) {
+        if (bs == null || bs.length == 0) return "";
+        return new String(bs, CHARSET_UTF_8);
     }
 
     /**

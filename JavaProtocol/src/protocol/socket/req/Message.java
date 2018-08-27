@@ -1,8 +1,8 @@
-package protocol.java.stream.req;
+package protocol.socket.req;
 
-import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolData;
-import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolDataInputStream;
-import protocol.java.ProtocolWrapper.ProtocolEntity.ProtocolDataOutputStream;
+import protocol.util.ProtocolWrapper.ProtocolEntity.ProtocolData;
+import protocol.util.ProtocolWrapper.ProtocolEntity.ProtocolDataInputStream;
+import protocol.util.ProtocolWrapper.ProtocolEntity.ProtocolDataOutputStream;
 
 import java.io.IOException;
 
