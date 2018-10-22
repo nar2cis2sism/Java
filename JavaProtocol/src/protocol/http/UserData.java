@@ -1,11 +1,11 @@
 package protocol.http;
 
 /**
- * 用户资料
+ * 获取个人信息返回数据
  */
-public class UserInfo {
+public class UserData {
     
-    public long version;                    // 用户信息版本
+    public int version;                     // 用户信息版本
 
     public String nickname;                 // 用户昵称
     
@@ -18,7 +18,10 @@ public class UserInfo {
     public long birthday;                   // 出生日期
 
     /**
-     * 此字段包含“区域编码(String)”与“地区名称(String)”，用“:”分隔
+     * 此字段包含
+     * “区域编码(String)”与
+     * “地区名称(String)”，
+     * 用“:”分隔
      */
     public String region;                   // 所在地区
     
