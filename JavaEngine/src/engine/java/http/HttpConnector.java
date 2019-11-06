@@ -1,9 +1,9 @@
 package engine.java.http;
 
 import engine.java.http.HttpRequest.HttpEntity;
+import engine.java.util.common.LogFactory;
+import engine.java.util.common.LogFactory.LOG;
 import engine.java.util.common.TextUtils;
-import engine.java.util.log.LogFactory;
-import engine.java.util.log.LogFactory.LOG;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -19,7 +19,6 @@ import java.util.concurrent.locks.ReentrantLock;
  * Http连接器
  * 
  * @author Daimon
- * @version N
  * @since 6/6/2014
  */
 public class HttpConnector {
@@ -49,8 +48,6 @@ public class HttpConnector {
     private final AtomicBoolean isConnected = new AtomicBoolean(); // 网络是否连接完成
 
     private final AtomicBoolean isCancelled = new AtomicBoolean(); // 是否取消网络连接
-
-    private HttpConnectionListener listener;                       // HTTP连接监听器
 
     /**
      * GET请求
@@ -94,6 +91,15 @@ public class HttpConnector {
         return name;
     }
     
+    public HttpConnector setTag(Object tag) {
+        this.tag = tag;
+        return this;
+    }
+
+    public Object getTag() {
+        return tag;
+    }
+
     public HttpRequest getRequest() {
         return request;
     }
@@ -140,60 +146,28 @@ public class HttpConnector {
         return this;
     }
 
-    public Object getTag() {
-        return tag;
-    }
-
-    public HttpConnector setTag(Object tag) {
-        this.tag = tag;
-        return this;
-    }
-
     /**
      * 连接网络
      */
     public synchronized HttpResponse connect() throws Exception {
+        isConnected.set(false);
         if (isCancelled())
         {
             return null;
         }
         
-        // 为了防止请求被拦截篡改数据
-        HttpRequest r = request.clone();
-        if (listener != null)
-        {
-            listener.connectBefore(this, r);
-            if (isCancelled())
-            {
-                return null;
-            }
-        }
-
-        log("联网请求：" + request.getUrl());
         long time = System.currentTimeMillis();
         try {
-            HttpResponse response = doConnect(r);
+            HttpResponse response = doConnect(request);
             if (!isCancelled())
             {
                 log(String.format("服务器响应时间--%dms", System.currentTimeMillis() - time));
-                
-                if (listener != null)
-                {
-                    listener.connectAfter(this, response);
-                }
-
                 return response;
             }
         } catch (Exception e) {
             if (!isCancelled())
             {
                 log(e);
-                
-                if (listener != null)
-                {
-                    listener.connectError(this, e);
-                }
-                
                 throw e;
             }
         } finally {
@@ -224,7 +198,6 @@ public class HttpConnector {
         String method = request.getMethod();
         HttpEntity entity = request.getEntity();
         Map<String, String> headers = request.getHeaders();
-        
         // 设置超时
         if (timeout > 0)
         {
@@ -232,24 +205,16 @@ public class HttpConnector {
             conn.setReadTimeout(timeout);
         }
 
+        conn.setRequestMethod(method);
         if (HttpRequest.METHOD_POST.equals(method))
         {
             conn.setDoOutput(true);
             conn.setUseCaches(false);
-            conn.addRequestProperty("Content-Type",
-                    "application/x-www-form-urlencoded");
-            conn.addRequestProperty("Content-Length",
-                    String.valueOf(entity.getContentLength()));
+            conn.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            conn.addRequestProperty("Content-Length", String.valueOf(entity.getContentLength()));
         }
 
         conn.addRequestProperty("Host", getHost(request.getUrl()));
-        conn.setRequestMethod(method);
-
-        if (params != null)
-        {
-            params.setup(conn);
-        }
-
         if (headers != null && !headers.isEmpty())
         {
             for (Entry<String, String> entry : headers.entrySet())
@@ -258,6 +223,7 @@ public class HttpConnector {
             }
         }
 
+        if (params != null) params.setup(conn);
         if (entity != null)
         {
             OutputStream outputstream = conn.getOutputStream();
@@ -279,10 +245,8 @@ public class HttpConnector {
     public void cancel() {
         if (isCancelled.compareAndSet(false, true))
         {
+            if (!isConnected.get()) log("取消网络连接：" + request.getUrl());
             close();
-
-            if (!isConnected.get())
-                log("取消网络连接：" + request.getUrl());
         }
     }
 
@@ -308,28 +272,11 @@ public class HttpConnector {
         return isCancelled.get();
     }
 
-    public HttpConnector setListener(HttpConnectionListener listener) {
-        this.listener = listener;
-        return this;
-    }
-
     /**
      * 日志输出
      */
     private void log(Object message) {
         if (!TextUtils.isEmpty(name)) LOG.log(name, message);
-    }
-
-    /**
-     * HTTP连接监听器
-     */
-    public interface HttpConnectionListener {
-
-        void connectBefore(HttpConnector conn, HttpRequest request);
-
-        void connectAfter(HttpConnector conn, HttpResponse response);
-
-        void connectError(HttpConnector conn, Exception e);
     }
 
     /**

@@ -1,5 +1,6 @@
 package engine.java.util.extra;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -8,7 +9,6 @@ import java.lang.reflect.Modifier;
  * 反射对象
  * 
  * @author Daimon
- * @version N
  * @since 10/17/2012
  */
 public class ReflectObject {
@@ -24,6 +24,15 @@ public class ReflectObject {
 
     public Object getObject() {
         return obj;
+    }
+
+    /**
+     * 利用反射实例化对象
+     */
+    public static <T> T newInstance(Class<T> c) throws Exception {
+        Constructor<T> constructor = c.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        return constructor.newInstance();
     }
 
     /**

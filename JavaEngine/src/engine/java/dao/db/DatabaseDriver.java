@@ -34,6 +34,6 @@ public class DatabaseDriver {
 	public DataBaseConnection createConnection(String host, String database, String username, String password) {
 		String url = String.format("jdbc:mysql://%s/%s?useUnicode=true&characterEncoding=utf-8&useSSL=false", 
 		        host, database);
-		return new DataBaseConnection(url, username, password);
+		return createConnection(url, username, password);
 	}
 }

@@ -6,16 +6,17 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.text.DecimalFormat;
 import java.text.ParseException;
+import java.util.Collection;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 工具类
  * 
  * @author Daimon
- * @version N
  * @since 3/26/2012
  */
 public final class Util {
@@ -113,9 +114,11 @@ public final class Util {
 
     /**
      * 将金钱格式化为国际货币的显示形式（如1,000,000）
+     * 
+     * @param keepDigits True:始终保留两位小数
      */
-    public static String formatMoney(double money) {
-        return formatNumber(money, ",##0");
+    public static String formatMoney(double money, boolean keepDigits) {
+        return formatNumber(money, keepDigits ? ",##0.00" : ",##0.##");
     }
 
     /**
@@ -190,6 +193,17 @@ public final class Util {
     }
 
     /**
+     * 格式化时间差值
+     */
+    public static String formatTime(long timeInMillis) {
+        TimeUnit unit = TimeUnit.MILLISECONDS;
+        long hours = unit.toHours(timeInMillis);
+        long minutes = unit.toMinutes(timeInMillis) % 60;
+        long seconds = unit.toSeconds(timeInMillis) % 60;
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+    }
+
+    /**
      * 打印对象信息
      */
     public static String toString(Object obj) {
@@ -245,5 +259,29 @@ public final class Util {
         }
 
         return null;
+    }
+
+    public static <O1, O2 extends O1> void copy(O1 copyFrom, O2 copyTo) {
+        try {
+            Class<?> c = copyFrom.getClass();
+            for (; c != Object.class; c = c.getSuperclass())
+            {
+                for (Field field : c.getDeclaredFields())
+                {
+                    field.setAccessible(true);
+                    field.set(copyTo, field.get(copyFrom));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static boolean isEmpty(Collection<?> collection) {
+        return collection != null && !collection.isEmpty();
+    }
+    
+    public static boolean isEmpty(Object[] array) {
+        return array != null && array.length > 0;
     }
 }

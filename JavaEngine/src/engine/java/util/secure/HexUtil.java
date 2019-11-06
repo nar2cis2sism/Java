@@ -4,7 +4,6 @@ package engine.java.util.secure;
  * A simple Hex encode and decode class
  * 
  * @author Daimon
- * @version N
  * @since 4/1/2012
  */
 public final class HexUtil {

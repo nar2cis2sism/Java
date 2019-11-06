@@ -1,6 +1,6 @@
 package engine.java.dao.db;
 
-import engine.java.util.log.LogFactory.LOG;
+import engine.java.util.common.LogFactory.LOG;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

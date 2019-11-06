@@ -25,7 +25,6 @@ import java.util.List;
  * 功能：文件操作
  * 
  * @author Daimon
- * @version N
  * @since 9/26/2012
  */
 public final class FileManager {
@@ -295,6 +294,7 @@ public final class FileManager {
      */
     public static boolean writeFile(File file, byte[] content, boolean append) {
         try {
+            createFileIfNecessary(file);
             FileOutputStream fos = null;
             try {
                 // The file will be created if it does not exist.
@@ -304,7 +304,7 @@ public final class FileManager {
             } finally {
                 if (fos != null) fos.close();
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 

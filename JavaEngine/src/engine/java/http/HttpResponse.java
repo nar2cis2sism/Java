@@ -14,7 +14,6 @@ import java.util.Map;
  * Http响应体
  * 
  * @author Daimon
- * @version N
  * @since 6/6/2015
  */
 public class HttpResponse {
@@ -64,32 +63,29 @@ public class HttpResponse {
             return null;
         }
         
-        if (list.size() == 1)
-        {
-            return list.get(0);
-        }
-        
         return TextUtils.join(",", list);
     }
     
-    private int getHeaderFieldInt(String field, int defaultValue) {
+    public int getHeaderFieldInt(String field, int defaultValue) {
         try {
             return Integer.parseInt(getHeaderField(field));
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
             return defaultValue;
         }
     }
     
-    @SuppressWarnings("deprecation")
-    private long getHeaderFieldDate(String field, long defaultValue) {
-        String date = getHeaderField(field);
-        if (date == null)
-        {
+    public long getHeaderFieldLong(String field, long defaultValue) {
+        try {
+            return Long.parseLong(getHeaderField(field));
+        } catch (Exception e) {
             return defaultValue;
         }
+    }
         
+    @SuppressWarnings("deprecation")
+    public long getHeaderFieldDate(String field, long defaultValue) {
         try {
-            return Date.parse(date); // TODO: use HttpDate.parse()
+            return Date.parse(getHeaderField(field));
         } catch (Exception e) {
             return defaultValue;
         }
@@ -106,8 +102,8 @@ public class HttpResponse {
         return getHeaderField("Content-Encoding");
     }
     
-    public int getContentLength() {
-        return getHeaderFieldInt("Content-Length", -1);
+    public long getContentLength() {
+        return getHeaderFieldLong("Content-Length", -1);
     }
     
     public String getContentType() {

@@ -21,7 +21,6 @@ import java.util.concurrent.locks.ReentrantLock;
  * Socket连接器（使用队列机制）
  * 
  * @author Daimon
- * @version N
  * @since 6/6/2014
  */
 public class SocketConnector {
@@ -181,11 +180,7 @@ public class SocketConnector {
             socketLock.lock();
             try {
                 closeSocket();
-
-                if (listener != null)
-                {
-                    listener.onClosed();
-                }
+                if (listener != null) listener.onClosed();
             } finally {
                 socketLock.unlock();
             }
@@ -271,19 +266,16 @@ public class SocketConnector {
                 while (isRunning.get())
                 {
                     Object data = getReceiver().parseData(in);
-
                     if (data != null && listener != null)
                     {
                         listener.onReceive(data);
                     }
                 }
             } catch (Exception e) {
-                if (!isRunning.get())
+                if (isRunning.get())
                 {
-                    return;
+                    onError(e);
                 }
-
-                onError(e);
             }
         }
     }
@@ -295,7 +287,6 @@ public class SocketConnector {
                 while (isRunning.get())
                 {
                     SocketData data = take();
-
                     if (data != null)
                     {
                         data.wrapData(out);
@@ -304,12 +295,10 @@ public class SocketConnector {
                     }
                 }
             } catch (Exception e) {
-                if (!isRunning.get())
+                if (isRunning.get())
                 {
-                    return;
+                    onError(e);
                 }
-
-                onError(e);
             }
         }
     }
@@ -334,7 +323,6 @@ public class SocketConnector {
             {
                 socket = new Socket(proxy);
             }
-        
         } finally {
             socketLock.unlock();
         }
@@ -344,7 +332,6 @@ public class SocketConnector {
             socket.connect(new InetSocketAddress(host, port), timeout);
         } catch (Exception e) {
             socket = null;
-
             if (!isClosed.getAndSet(true))
             {
                 onError(e);
@@ -397,11 +384,7 @@ public class SocketConnector {
     }
     
     private void onConnected() {
-        if (listener != null)
-        {
-            listener.onConnected(socket);
-        }
-
+        if (listener != null) listener.onConnected(socket);
         // 建立网络收发线程
         isRunning = new AtomicBoolean(true);
         startThread(new Runnable() {

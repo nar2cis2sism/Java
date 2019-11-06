@@ -2,8 +2,8 @@ package engine.java.dao;
 
 import static engine.java.dao.DAOUtil.checkNull;
 import static engine.java.dao.DAOUtil.extractFromResultSet;
-import static engine.java.util.log.LogFactory.LOG.log;
-import static engine.java.util.log.LogFactory.LogUtil.getCallerStackFrame;
+import static engine.java.util.common.LogFactory.LOG.log;
+import static engine.java.util.common.LogFactory.LogUtil.getCallerStackFrame;
 
 import engine.java.dao.DAOUtil.DAOException;
 import engine.java.dao.annotation.DAOPrimaryKey;
@@ -11,10 +11,10 @@ import engine.java.dao.annotation.DAOProperty;
 import engine.java.dao.annotation.DAOTable;
 import engine.java.dao.db.DataBaseConnection;
 import engine.java.dao.util.Page;
+import engine.java.util.common.LogFactory;
+import engine.java.util.common.LogFactory.LogUtil;
 import engine.java.util.common.Pair;
 import engine.java.util.common.TextUtils;
-import engine.java.util.log.LogFactory;
-import engine.java.util.log.LogFactory.LogUtil;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * 不支持多表联合操作，使用原生SQL语句或事务处理效率更高<br>
  * 
  * @author Daimon
- * @version N
  * @since 4/5/2015
  */
 public class DAOTemplate {

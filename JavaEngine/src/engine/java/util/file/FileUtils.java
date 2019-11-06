@@ -1,6 +1,6 @@
 package engine.java.util.file;
 
-import engine.java.util.log.LogFactory.LOG;
+import engine.java.util.common.LogFactory.LOG;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
