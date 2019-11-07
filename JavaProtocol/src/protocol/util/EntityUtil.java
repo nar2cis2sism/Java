@@ -7,7 +7,6 @@ import java.nio.charset.Charset;
  * 功能：适用于xml,json等文本格式
  * 
  * @author Daimon
- * @version N
  * @since 6/6/2014
  */
 public final class EntityUtil {
@@ -44,7 +43,6 @@ public final class EntityUtil {
  * 因为其无须授权即可使用，作为一种自由授权的加密方式在SSH、文件加密软件等被广泛地使用。
  * 
  * @author Daimon
- * @version N
  * @since 3/22/2012
  */
 final class Blowfish {

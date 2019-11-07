@@ -21,7 +21,6 @@ import javax.crypto.spec.SecretKeySpec;
  * 功能：适用于多平台网络交互
  * 
  * @author Daimon
- * @version N
  * @since 6/6/2014
  */
 public final class ProtocolWrapper {
