@@ -17,6 +17,7 @@ public class ErrorInfo {
         errorMap.put(400, "请求格式错误");
         errorMap.put(401, "密码错误");
         errorMap.put(404, "用户不存在");
+        errorMap.put(406, "验证码错误");
         errorMap.put(407, "Token已失效");
         errorMap.put(410, "已在其他地方登录");
         errorMap.put(415, "数据已存在");

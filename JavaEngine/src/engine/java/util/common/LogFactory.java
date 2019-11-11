@@ -249,7 +249,7 @@ public class LogFactory implements Runnable {
     
     public static final class LogUtil {
 
-        private static final int CURRENT_STACK_FRAME = 3;
+        private static final int CURRENT_STACK_FRAME = 2;
 
         /**
          * 获取当前函数堆栈信息
